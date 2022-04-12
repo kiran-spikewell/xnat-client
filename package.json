@@ -1,10 +1,10 @@
 {
   "name": "xnat-desktop-client",
-  "version": "3.0.0",
+  "version": "3.0.1-beta.1",
   "description": "XNAT Desktop Client",
   "main": "main.js",
   "extraMetadata": {
-    "submitUrl": "https://pharos.wurstworks.com/crashpad"
+    "submitUrl": "https://pharos.xnat.org/crashpad"
   },
   "scripts": {
     "start": "npm-run-all -s sass:build electron-start",
