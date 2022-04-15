@@ -17,6 +17,8 @@ const { isReallyWritable } = require('../services/app_utils');
 
 const user_settings = require('../services/user_settings');
 
+/*
+ * TOOLS-637 Removing crashpad reporting until we can verify no PHI at risk
 const appMetaData = require('../package.json');
 electron.crashReporter.start({
     companyName: appMetaData.author,
@@ -25,8 +27,7 @@ electron.crashReporter.start({
     submitURL: appMetaData.extraMetadata.submitUrl,
     uploadToServer: settings.get('send_crash_reports', false)
 });
-
-
+*/
 
 try {
     let mizer = remote.require('./mizer');

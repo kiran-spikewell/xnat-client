@@ -44,6 +44,8 @@ let summary_log = {};
 let transfer_progress = [];
 let userAgentString = remote.getCurrentWindow().webContents.getUserAgent();
 
+/*
+ * TOOLS-637 Removing crashpad reporting until we can verify no PHI at risk
 const appMetaData = require('../package.json');
 electron.crashReporter.start({
     companyName: appMetaData.author,
@@ -52,6 +54,7 @@ electron.crashReporter.start({
     submitURL: appMetaData.extraMetadata.submitUrl,
     uploadToServer: settings.get('send_crash_reports', false)
 });
+*/
 
 function summary_log_update(transfer_id, prop, val) {
     summary_log[transfer_id] = summary_log[transfer_id] || {}

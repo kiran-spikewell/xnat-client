@@ -38,6 +38,8 @@ const db_downloads = remote.require('./services/db/downloads');
 
 let userAgentString = remote.getCurrentWindow().webContents.getUserAgent();
 
+/*
+ * TOOLS-637 Removing crashpad reporting until we can verify no PHI at risk
 const appMetaData = require('../package.json');
 electron.crashReporter.start({
     companyName: appMetaData.author,
@@ -46,7 +48,7 @@ electron.crashReporter.start({
     submitURL: appMetaData.extraMetadata.submitUrl,
     uploadToServer: settings.get('send_crash_reports', false)
 });
-
+*/
 
 if (!settings.has('global_pause')) {
     settings.set('global_pause', false);

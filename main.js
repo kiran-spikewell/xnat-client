@@ -27,6 +27,8 @@ electron_log.info('App starting...');
 
 app.commandLine.appendSwitch('remote-debugging-port', '9222')
 
+/*
+ * TOOLS-637 Removing crashpad reporting until we can verify no PHI at risk
 const appMetaData = require('./package.json');
 electron.crashReporter.start({
     companyName: appMetaData.author,
@@ -35,7 +37,7 @@ electron.crashReporter.start({
     submitURL: appMetaData.extraMetadata.submitUrl,
     uploadToServer: settings.get('send_crash_reports', false)
 });
-
+*/
 
 const { autoUpdater } = require('electron-updater');
 
