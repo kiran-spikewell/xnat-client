@@ -1,7 +1,7 @@
 const electron = require('electron');
 const ElectronStore = require('electron-store');
 const settings = new ElectronStore();
-const ipc = electron.ipcRenderer
+const ipcRenderer = electron.ipcRenderer
 const app = electron.remote.app
 const shell = electron.shell
 const isOnline = require('is-online');
@@ -76,7 +76,7 @@ console_log('ACTIVE PAGE: ', active_page);
 
 loadPage(active_page)
 
-ipc.send('appIsReady');
+ipcRenderer.send('appIsReady');
 app.isReallyReady = true;
 
 // *******************************************************************
@@ -283,10 +283,10 @@ async function protocol_request(e, url) {
 
                 // add ipc send (to home) + plus redirect
                 if (is_upload) {
-                    ipc.send('launch_upload', url_data);
+                    ipcRenderer.send('launch_upload', url_data);
                 } else {
                     // add ipc send (to home) + plus redirect
-                    ipc.send('launch_download_modal', url_data);
+                    ipcRenderer.send('launch_download_modal', url_data);
                 }
 
             } catch (err) {
@@ -392,7 +392,7 @@ $(document).on('click', '#trigger_download', function(){
     setTimeout(function(){
         $('button[data-target="#download_modal"]').trigger('click');
     }, 300);
-    ipc.send('redirect', 'home.html');
+    ipcRenderer.send('redirect', 'home.html');
 })
 
 $(document).on('click', '#menu--logout', function(){
@@ -451,7 +451,7 @@ $(document).on('click', '#confirm_temp_folder', function() {
                 user_settings.set('temp_folder_alternative', alt_path);
 
                 // unpause => restart upload
-                ipc.send('global_pause_status', false);
+                ipcRenderer.send('global_pause_status', false);
 
                 $('#alt_upload_method_modal').modal('hide');
             } else {
@@ -462,7 +462,7 @@ $(document).on('click', '#confirm_temp_folder', function() {
         }
     } else {
         user_settings.set('zip_upload_mode', true);
-        ipc.send('global_pause_status', false);
+        ipcRenderer.send('global_pause_status', false);
 
         $('#alt_upload_method_modal').modal('hide');
     }
@@ -473,7 +473,7 @@ $(document).on('click', '#download_and_install', function(e) {
     $(this).prop('disabled', true);
     $('#auto_update_progress').removeClass('hidden');
 
-    ipc.send('download_and_install');
+    ipcRenderer.send('download_and_install');
 })
 
 // =============== POPOVERS ===============
@@ -493,16 +493,16 @@ $('body').on('click', function (e) {
 
 // ========================================
 
-ipc.on('load:page',function(e, item){
+ipcRenderer.on('load:page',function(e, item){
     console_log('Loading page ... ' + item)
     loadPage(item)
 });
 
-ipc.on('remove_current_session',function(e, item){
+ipcRenderer.on('remove_current_session',function(e, item){
     reset_user_data()
 });
 
-ipc.on('custom_error',function(e, title, message){
+ipcRenderer.on('custom_error',function(e, title, message){
     console_log(title, message);
     
     swal(title, message, 'error');
@@ -515,9 +515,9 @@ ipc.on('custom_error',function(e, title, message){
     // })
 });
 
-ipc.on('log', ipc_log);
+ipcRenderer.on('log', ipc_log);
 
-ipc.on('update-available', (e, ...args) => {
+ipcRenderer.on('update-available', (e, ...args) => {
     $('#auto_update_current').text('v' + app.getVersion())
     $('#auto_update_available').text('v' + args[0].version)
 
@@ -531,11 +531,11 @@ ipc.on('update-available', (e, ...args) => {
     store.set('version-info-update', 'Updated version available.')
 })
 
-ipc.on('update-not-available', (e, ...args) => {
+ipcRenderer.on('update-not-available', (e, ...args) => {
     store.set('version-info-update', 'You are running the latest version.')
 })
 
-ipc.on('update-error', (e, ...args) => {
+ipcRenderer.on('update-error', (e, ...args) => {
     //let str = args.join(' | ')
     //Helper.pnotify('Naslov', 'Poruka: ' + str);
     console_log('update-error')
@@ -546,7 +546,7 @@ ipc.on('update-error', (e, ...args) => {
     store.set('version-info-update', 'An error occurred during update download.')
 })
 
-ipc.on('download-progress', (e, ...args) => {
+ipcRenderer.on('download-progress', (e, ...args) => {
     //let str = args.join(' | ')
     //Helper.pnotify('Naslov', 'Poruka: ' + str);
     console_log('download-progress')
@@ -556,21 +556,21 @@ ipc.on('download-progress', (e, ...args) => {
     $('#auto_update_progress').attr("value", Math.ceil(args[0].percent))
 })
 
-ipc.on('update-downloaded', (e, ...args) => {
+ipcRenderer.on('update-downloaded', (e, ...args) => {
     //let str = args.join(' | ')
     //Helper.pnotify('Naslov', 'Poruka: ' + str);
     console_log('update-downloaded')
     console_log(args);
 })
 
-ipc.on('xnat_cant_handle_stream_upload', (e, ...args) => {
+ipcRenderer.on('xnat_cant_handle_stream_upload', (e, ...args) => {
     $('#alt_upload_method_modal').modal({
         keyboard: true,
         backdrop: 'static'
     })
 })
 
-ipc.on('force_reauthenticate', (e, login_data) => {
+ipcRenderer.on('force_reauthenticate', (e, login_data) => {
     clearLoginSession()
 
     setTimeout(function() {
@@ -597,13 +597,24 @@ ipc.on('force_reauthenticate', (e, login_data) => {
     }, 200);
 })
 
-ipc.on('handle_protocol_request', protocol_request)
+ipcRenderer.on('handle_protocol_request', protocol_request)
 
-ipc.on('custom_error_with_details', ipcEventHandlers.customErrorWithDetails);
+ipcRenderer.on('custom_error_with_details', ipcEventHandlers.customErrorWithDetails);
 
-ipc.on('display_allow_unverified_ssl', function(e) {
+ipcRenderer.on('display_allow_unverified_ssl', function(e) {
     $('.form-check').removeClass('hidden')
 })
+
+ipcRenderer.on('clearVersion2DbFiles', function(e) {
+    swal({
+        title: "Old transfer data removed!", 
+        text: "Due to data format incompatibility with the current release, transfers that were stored in the previous version of XNAT Desktop Client are now removed.", 
+        icon: "info",
+        closeOnEsc: false,
+        closeOnClickOutside: false
+    });
+})
+
 
 
 window.onerror = function (errorMsg, url, lineNumber) {
@@ -611,6 +622,6 @@ window.onerror = function (errorMsg, url, lineNumber) {
     electron_log.error(`[Custom Uncaught Error]:: ${error_msg}`)
     console_log(__filename + ':: ' +  errorMsg);
 
-    ipc.send('custom_error', `Custom Uncaught Error`, error_msg)
+    ipcRenderer.send('custom_error', `Custom Uncaught Error`, error_msg)
     return false;
 }

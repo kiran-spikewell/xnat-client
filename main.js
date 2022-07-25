@@ -1,25 +1,24 @@
 const path = require('path')
-
-// test_multiple_commands();
-
+const fs = require('fs')
 const glob = require('glob')
-const fs = require('fs');
 const electron = require('electron')
-
-const auth = require('./services/auth');
-
-const { app, BrowserWindow, ipcMain, shell, Tray, dialog, protocol } = electron;
-
+const { app, BrowserWindow, ipcMain, shell, Tray, dialog, protocol } = electron
+const { autoUpdater } = require('electron-updater')
 const electron_log = require('./services/electron_log')
 
-const { isDevEnv, getUpdateChannel } = require('./services/app_utils');
+const { isDevEnv, getUpdateChannel } = require('./services/app_utils')
 
-const MigrateSettings = require('./services/settings_to_store_migration')
-MigrateSettings(app.getPath('userData'))
+const auth = require('./services/auth')
 
-const ElectronStore = require('electron-store');
+const { runMigrations } = require('./services/migrations')
+const appMetaData = require('./package.json')
+
+const ElectronStore = require('electron-store')
 const settings = new ElectronStore();
 
+// windows
+let mainWindow = null, downloadWindow = null, uploadWindow = null;
+let startupExternalUrl;
 
 //electron_log.transports.file.clear();
 
@@ -27,7 +26,6 @@ electron_log.info('App starting...');
 
 app.commandLine.appendSwitch('remote-debugging-port', '9222')
 
-const appMetaData = require('./package.json');
 electron.crashReporter.start({
     companyName: appMetaData.author,
     productName: appMetaData.name,
@@ -37,23 +35,22 @@ electron.crashReporter.start({
 });
 
 
-const { autoUpdater } = require('electron-updater');
-
-// windows
-let mainWindow = null, downloadWindow = null, uploadWindow = null;
-
-let startupExternalUrl;
-
 if (isSecondInstance()){
   app.quit()
 } else {
+  runMigrations()
   if (is_usr_local_lib_writable()) {
-    fix_java_path();
-    initialize();
+    fix_java_path()
+    initialize()
   } else {
     initialize_usr_local_lib_app()
   }
 }
+
+global.user_auth = {
+  username: null,
+  password: null
+};
 
 
 function initialize_usr_local_lib_app() {
@@ -690,6 +687,11 @@ ipcMain.on('shell.showItemInFolder', (e, full_path) => {
   shell.showItemInFolder(full_path)
 })
 
+ipcMain.on('clearVersion2DbFiles', (e, item) => {
+  post_message('clearVersion2DbFiles')
+})
+
+
 ipcMain.on('print_pdf', (e, html, destination, pdf_settings, filename_base, show_in_folder = true) => {
   const file_name = `Upload-Receipt--${filename_base}-${Date.now()}` 
   const pdf_filepath = path.join(destination, `${file_name}.pdf`)
@@ -728,14 +730,3 @@ ipcMain.on('print_pdf', (e, html, destination, pdf_settings, filename_base, show
   });
   
 })
-
-
-
-exports.log = log
-
-
-
-global.user_auth = {
-  username: null,
-  password: null
-};
