@@ -2,9 +2,9 @@ build_config: &build_config
   BUILD_IMAGE_NAME: xnat/node-java-build
   BUILD_IMAGE_TAG: latest
   CACHE_VERSION: v2
-  NODE_VERSION: "v10.22.0"
-  NVM_VERSION: "0.35.3"
-  JAVA_VERSION: "zulu8.48.0.53-ca-jdk8.0.265"
+  NODE_VERSION: "v14.20.0"
+  NVM_VERSION: "0.39.1"
+  JAVA_VERSION: "zulu8.64.0.19-ca-jdk8.0.345"
   JDK_ROOT: "https://cdn.azul.com/zulu/bin"
 
 version: 2
@@ -77,7 +77,7 @@ jobs:
       <<: *build_config
 
     macos:
-      xcode: "11.4.1"
+      xcode: "11.7.0"
 
     working_directory: ~/build
 
@@ -96,6 +96,20 @@ jobs:
             nvm install ${NODE_VERSION}
             nvm alias default ${NODE_VERSION}
             nvm use default
+      - run:
+          name: Download and install JDK
+          command: |
+            [[ ! -d /Library/Java/JavaVirtualMachines/zulu-8.jdk ]] && {
+                JAVA_TARGET="${JAVA_VERSION}-macosx_x64"
+                echo "No JDK found, downloading ${JAVA_VERSION}"
+                http --download ${JDK_ROOT}/${JAVA_TARGET}.zip
+                unzip ${JAVA_TARGET}.zip
+                sudo mv ${JAVA_TARGET}/zulu-8.jdk /Library/Java/JavaVirtualMachines
+                rm -rf ${JAVA_TARGET}*
+                echo "JDK ${JAVA_TARGET} installed, using version: $(/Library/Java/JavaVirtualMachines/zulu-8.jdk/Contents/Home/bin/java -version 2>&1 | grep Server)"
+            } || {
+                echo "Existing JDK found, using version: $(/Library/Java/JavaVirtualMachines/zulu-8.jdk/Contents/Home/bin/java -version 2>&1 | grep Server)"
+            }
       - checkout
       - restore_cache:
           key: cache-${CACHE_VERSION}-mac-{{ .Branch }}-{{ checksum "package.json" }}
@@ -104,7 +118,7 @@ jobs:
           command: |
             [[ ! -f /Applications/XNAT-Desktop-Client.app/Contents/Resources/jre/lib/jli/libjli.dylib ]] && {
               [[ -d /Applications/XNAT-Desktop-Client.app ]] && { rm -rf /Applications/XNAT-Desktop-Client.app; }
-              cp -R /Library/Java/JavaVirtualMachines/adoptopenjdk-8.jdk /Applications/XNAT-Desktop-Client.app
+              cp -R /Library/Java/JavaVirtualMachines/zulu-8.jdk /Applications/XNAT-Desktop-Client.app
               cp -R /Applications/XNAT-Desktop-Client.app/Contents/Home /Applications/XNAT-Desktop-Client.app/Contents/Resources
             }
             [[ -f /Applications/XNAT-Desktop-Client.app/Contents/Resources/jre/lib/jli/libjli.dylib ]] || { echo "Tried to install libjli.dylib but something went wrong"; }
@@ -119,13 +133,8 @@ jobs:
                  }
             }
             [[ ! -d build_resources/jre/mac ]] && {
-                [[ -d build_resources/jre/mac ]] && { rm -rf build_resources/jre/mac; }
-                JAVA_TARGET="${JAVA_VERSION}-macosx_x64"
-                echo "No JRE found, downloading ${JAVA_VERSION}"
-                http --download ${JDK_ROOT}/${JAVA_TARGET}.zip
-                unzip ${JAVA_TARGET}.zip
-                mv ${JAVA_TARGET}/zulu-8.jdk/Contents/Home/jre build_resources/jre/mac
-                rm -rf ${JAVA_TARGET}*
+                mkdir -p build_resources/jre
+                cp -R /Library/Java/JavaVirtualMachines/zulu-8.jdk/Contents/Home/jre build_resources/jre/mac
                 echo "JRE installed, using version: $(build_resources/jre/mac/bin/java -version 2>&1 | grep Server)"
             } || {
                 echo "Existing JRE found, using version: $(build_resources/jre/mac/bin/java -version 2>&1 | grep Server)"
@@ -135,7 +144,7 @@ jobs:
       - run:
           name: Install and build node dependencies
           command: |
-            JAVA_HOME=$(/usr/libexec/java_home)
+            JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-8.jdk/Contents/Home
             yarn install
       - save_cache:
           key: cache-${CACHE_VERSION}-mac-{{ .Branch }}-{{ checksum "package.json" }}
@@ -146,7 +155,7 @@ jobs:
       - run:
           name: Build Mac executable and installer
           command: |
-            JAVA_HOME=$(/usr/libexec/java_home)
+            JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-8.jdk/Contents/Home
             yarn dist-mac
       - run:
           name: Copy build artifacts to artifacts folder
