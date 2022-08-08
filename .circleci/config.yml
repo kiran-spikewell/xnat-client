@@ -42,8 +42,7 @@ jobs:
           name: Build Windows 64-bit executable and installer
           command: |
               export JAVA_HOME="${JAVA_HOME_WIN}"
-              echo "Skipping 'yarn dist-win-x64'"
-              #yarn dist-win-x64
+              yarn dist-win-x64
       - run:
           name: Build Linux 64-bit executable and installer
           command: |
