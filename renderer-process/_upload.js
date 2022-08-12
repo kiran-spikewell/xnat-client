@@ -36,6 +36,7 @@ const { copy_anonymize_zip } = require('../services/upload/copy_anonymize_zip');
 const { file_checksum, uuidv4, isEmptyObject, promiseSerial } = require('../services/app_utils')
 const { MizerError } = require('../services/errors');
 
+const CONSTANTS = require('../services/constants');
 
 
 let summary_log = {};
@@ -531,6 +532,7 @@ async function copy_and_anonymize(transfer, series_id, filePaths, contexts, vari
         headers: {
             'User-Agent': userAgentString,
             'Content-Type': 'application/zip',
+            'Keep-Alive': `timeout=${CONSTANTS.KEEP_ALIVE_TIMEOUT_SEC}, max=1000`,
             'Cookie': jsession_cookie
         },
         cancelToken: new CancelToken(function executor(c) {
@@ -543,6 +545,7 @@ async function copy_and_anonymize(transfer, series_id, filePaths, contexts, vari
                 cancel: c
             })
         }),
+        //timeout: 321000,
         // transformRequest: [(data, headers) => {
         //     // Do whatever you want to transform the data
         //     console_red('transformRequest')
@@ -552,7 +555,13 @@ async function copy_and_anonymize(transfer, series_id, filePaths, contexts, vari
         data: archive
     };
 
-    let https_agent_options = { keepAlive: true };
+    let https_agent_options = { 
+        keepAlive: true,
+        keepAliveMsecs: 500,
+
+        // Socket timeout in milliseconds. This will set the timeout after the socket is connected. 
+        timeout: CONSTANTS.SOCET_TIMEOUT_SEC * 1000 
+    }
     if (auth.allow_insecure_ssl()) {
         https_agent_options.rejectUnauthorized = false // insecure SSL at request level
     }
@@ -591,6 +600,7 @@ async function copy_and_anonymize(transfer, series_id, filePaths, contexts, vari
 
     axios(request_settings)
     .then(async (res) => {
+        console.log({upload_request_response: res})
         console_red('zip upload done - res')
 
         await store_checksums(transfer.id, series_id, upload_id)
@@ -650,11 +660,18 @@ async function copy_and_anonymize(transfer, series_id, filePaths, contexts, vari
                 auth: user_auth,
                 headers: {
                     'User-Agent': userAgentString,
+                    'Keep-Alive': `timeout=${CONSTANTS.KEEP_ALIVE_TIMEOUT_SEC}, max=1000`,
                     'Cookie': jsession_cookie
                 }
             }
 
-            let https_agent_options = { keepAlive: true };
+            let https_agent_options = { 
+                keepAlive: true,
+                keepAliveMsecs: 500, // default is 1000
+
+                // Socket timeout in milliseconds. This will set the timeout after the socket is connected. 
+                timeout: CONSTANTS.SOCET_TIMEOUT_SEC * 1000 
+            }
             if (auth.allow_insecure_ssl()) {
                 https_agent_options.rejectUnauthorized = false // insecure SSL at request level
             }

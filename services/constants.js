@@ -4,6 +4,8 @@ module.exports = Object.freeze({
     ALLOW_VISUAL_PHI_CHECK: true, // PIXEL EDITING UI switch (upload workflow)
     BULK_IMAGE_ANONYMIZATION: true, // ALLOW_VISUAL_PHI_CHECK_BULK
     UPLOAD_SELECTION_WARNING_SIZE: 5 * 1024 * 1024 * 1024, // 5GB
+    KEEP_ALIVE_TIMEOUT_SEC: 600, // Keep-Alive header, timeout parameter
+    SOCET_TIMEOUT_SEC: 600, // Axios - A maximum time of inactivity between two data packets when exchanging data with a server.
     PRIMARY_MODALITIES: [
         'CR', 'CT', 'MR', 'PT', 'DX', 'ECG', 'EPS', 'ES', 'GM', 'HD', 
         'IO', 'MG', 'NM', 'OP', 'OPT', 'RF', 'SM', 'US', 'XA', 'XC', 'OT'
