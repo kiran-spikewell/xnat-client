@@ -557,7 +557,7 @@ async function copy_and_anonymize(transfer, series_id, filePaths, contexts, vari
 
     let https_agent_options = { 
         keepAlive: true,
-        keepAliveMsecs: 500,
+        keepAliveMsecs: 1000,
 
         // Socket timeout in milliseconds. This will set the timeout after the socket is connected. 
         timeout: CONSTANTS.SOCET_TIMEOUT_SEC * 1000 
@@ -667,7 +667,7 @@ async function copy_and_anonymize(transfer, series_id, filePaths, contexts, vari
 
             let https_agent_options = { 
                 keepAlive: true,
-                keepAliveMsecs: 500, // default is 1000
+                keepAliveMsecs: 1000, // default is 1000
 
                 // Socket timeout in milliseconds. This will set the timeout after the socket is connected. 
                 timeout: CONSTANTS.SOCET_TIMEOUT_SEC * 1000 

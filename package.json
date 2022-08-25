@@ -1,6 +1,6 @@
 {
   "name": "xnat-desktop-client",
-  "version": "3.1.0-beta.2",
+  "version": "3.1.0",
   "description": "XNAT Desktop Client",
   "main": "main.js",
   "extraMetadata": {
@@ -140,6 +140,7 @@
       "target": "nsis",
       "publisherName": "WASHINGTON UNIVERSITY IN ST. LOUIS",
       "verifyUpdateCodeSignature": false,
+      "rfc3161TimeStampServer": "http://sha256timestamp.ws.symantec.com/sha256/timestamp",
       "extraResources": [
         {
           "from": "build_resources/jre/win-${arch}",
