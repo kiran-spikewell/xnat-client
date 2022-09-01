@@ -3,10 +3,13 @@ const path = require('path')
 const fs = require('fs')
 const checksum = require('checksum')
 const FileSaver = require('file-saver')
+const { glob } = require('glob')
 
 const ElectronStore = require('electron-store')
-const { replace } = require('lodash')
 const settings = new ElectronStore()
+
+const tempDir = require('temp-dir')
+const rimraf = require('rimraf')
 
 exports.isDevEnv = () => {
     // return process.argv && process.argv.length >= 3 && /--debug/.test(process.argv[2]);
@@ -17,8 +20,10 @@ exports.isDevEnv = () => {
     return process.mainModule.filename.indexOf('app.asar') === -1;
 }
 
+exports.getApp = () => electron.remote ? electron.remote.app : electron.app
+
 exports.getDefaultUpdateChannel = () => {
-    const app = electron.remote ? electron.remote.app : electron.app
+    const app = this.getApp()
     const versionString = app.getVersion()
     
     return versionString.includes("-beta") ? "beta" : 
@@ -35,6 +40,29 @@ exports.setUpdateChannel = (channel) => {
         channel = 'latest'
     }
     return settings.set('electron-updater-channel', channel)
+}
+
+exports.getJsonDbFiles = (dbType = '*') => {
+    const app = this.getApp()
+    const appDataDir = app.getPath('userData')
+    const fileRegex = dbType === '*' ? `db.*.json` : `db.${dbType}.*.json`
+    const dbPath = path.join(appDataDir, fileRegex)
+
+    return glob.sync(dbPath)
+}
+
+exports.clearDefaultTempFiles = () => {
+    return new Promise((resolve, reject) => {
+        const directory = path.resolve(tempDir, '_xdc_temp', '*')
+
+        rimraf(directory, {disableGlob: false}, error => {
+            if (error) {
+                reject(error)
+            } else {
+                resolve(true)
+            }
+        })
+    })
 }
 
 exports.objToJsonFile = (jsonObject, target_path) => {

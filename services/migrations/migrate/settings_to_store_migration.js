@@ -24,8 +24,6 @@ const migrate = (electron_settings_base_path) => {
     } else {
         console.log(`NO Old Settings file [${settings_path}]`);
     }
-
-    //console.log(app_config.store);
 }
 
 module.exports = migrate
