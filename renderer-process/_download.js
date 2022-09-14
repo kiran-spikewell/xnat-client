@@ -149,6 +149,10 @@ function start_transfer() {
     } else {
         //console_log('transfering_ NOT TRANSFERING ... INITIALIZING');
     }
+
+    if (settings.get('global_pause')) {
+        return;
+    }
     
     let current_xnat_server = settings.get('xnat_server');
     let current_username = auth.get_current_user();

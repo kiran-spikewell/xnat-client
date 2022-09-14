@@ -90,6 +90,15 @@ module.exports._insertDoc = (data) => {
     });
 }
 
+module.exports.compactDb = (onCompactionDone = null) => {
+    db().persistence.compactDatafile()
+    db().once('compaction.done', function() {
+        // console.log('Database compaction is done - from uploads.js')
+        if (onCompactionDone) {
+            onCompactionDone()
+        }
+    })
+}
 
 module.exports.insert_one = (name, callback) => { // callback(err, newDoc)
     //db().insert({name: name}, callback);

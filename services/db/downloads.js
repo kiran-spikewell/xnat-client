@@ -71,9 +71,15 @@ module.exports._updateProperty = (id, property, value) => {
     });
 }
 
-
-
-
+module.exports.compactDb = (onCompactionDone = null) => {
+    db().persistence.compactDatafile()
+    db().once('compaction.done', function() {
+        // console.log('Database compaction is done - from downloads.js')
+        if (onCompactionDone) {
+            onCompactionDone()
+        }
+    })
+}
 
 module.exports.insert_one = (name, callback) => { // callback(err, newDoc)
     //db().insert({name: name}, callback);
