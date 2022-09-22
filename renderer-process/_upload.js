@@ -33,7 +33,7 @@ const nedb_logger = remote.require('./services/db/nedb_logger')
 
 const { copy_anonymize_zip } = require('../services/upload/copy_anonymize_zip');
 // const { copy_anonymize_stream } = require('../services/upload/copy_anonymize_stream');
-const { file_checksum, uuidv4, isEmptyObject, promiseSerial, arrayUnique, isDevEnv, getDefaultUpdateChannel } = require('../services/app_utils')
+const { file_checksum, uuidv4, isEmptyObject, promiseSerial, arrayUnique, isDevEnv, currentVersionChannel } = require('../services/app_utils')
 const { MizerError } = require('../services/errors');
 
 const CONSTANTS = require('../services/constants');
@@ -67,7 +67,7 @@ function summary_log_update(transfer_id, prop, val) {
     //db_uploads.updateProperty(transfer_id, 'summary', summary_log[transfer_id])
 }
 
-let logger_enabled = isDevEnv() || ['alpha', 'beta'].includes(getDefaultUpdateChannel())
+let logger_enabled = isDevEnv() || ['alpha', 'beta'].includes(currentVersionChannel())
 
 console.log({logger_enabled});
 

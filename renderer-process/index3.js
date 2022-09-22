@@ -13,9 +13,11 @@ const remote = require('electron').remote;
 
 const ipcEventHandlers = require('../services/ipc-event-handlers')
 
-const { isReallyWritable } = require('../services/app_utils');
+const { isReallyWritable, isDevEnv, currentVersionChannel } = require('../services/app_utils');
 
 const user_settings = require('../services/user_settings');
+
+const test_environment = isDevEnv() || currentVersionChannel() === 'alpha';
 
 /*
  * TOOLS-637 Removing crashpad reporting until we can verify no PHI at risk
@@ -370,6 +372,13 @@ function ipc_log(e, ...args){
 
 
 // ===============
+// hide UI elements that are used for testing purposes
+$(document).on('page:load', function(e){
+    if (!test_environment) {
+        $('[data-app-testing]').hide()
+    }
+});
+
 $(document).on('click', 'a', function(e){
     const href = $(this).attr('href');
     if (href.indexOf('http') !== 0) {

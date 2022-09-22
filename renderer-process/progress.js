@@ -24,7 +24,7 @@ const ejs_template = require('../services/ejs_template')
 
 const path = require('path')
 
-const { objArrayToCSV } = require('../services/app_utils');
+const { objArrayToCSV, objToJsonFile } = require('../services/app_utils');
 
 const { console_red } = require('../services/logger');
 
@@ -38,7 +38,6 @@ NProgress.configure({
     speed: 1,
     minimum: 0.03
 });
-
 
 let xnat_server, user_auth;
 
@@ -593,6 +592,32 @@ $(document).on('click', csv_export_buttons.join(','), function(e) {
     .then((toDownload) => {
         if (toDownload === "yes") {
             downloadCsvLog(id);
+        }
+    });
+})
+
+$on('click', '#upload_session_to_json', function() {
+    let id = $(this).closest('.modal-content').attr('data-id');
+
+    swal({
+        title: "Notice!",
+        text: "Export session data as JSON file?",
+        icon: "warning",
+        buttons: {
+            yes: "Export JSON",
+            cancel: "Cancel"
+        },
+
+        closeOnEsc: true,
+        dangerMode: true
+    })
+    .then(async (toDownload) => {
+        if (toDownload === "yes") {
+            let transfer = await db_uploads._getById(id)
+            let my_path = path.resolve(tempDir, `${id}--${Date.now()}.json`)
+            objToJsonFile(transfer, my_path)
+
+            ipc.send('shell.showItemInFolder', my_path)
         }
     });
 })

@@ -22,7 +22,7 @@ exports.isDevEnv = () => {
 
 exports.getApp = () => electron.remote ? electron.remote.app : electron.app
 
-exports.getDefaultUpdateChannel = () => {
+exports.currentVersionChannel = () => {
     const app = this.getApp()
     const versionString = app.getVersion()
     
@@ -32,7 +32,7 @@ exports.getDefaultUpdateChannel = () => {
 }
 
 exports.getUpdateChannel = () => {
-    return settings.get('electron-updater-channel', this.getDefaultUpdateChannel())
+    return settings.get('electron-updater-channel', this.currentVersionChannel())
 }
 
 exports.setUpdateChannel = (channel) => {
