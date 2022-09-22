@@ -33,7 +33,7 @@ const nedb_logger = remote.require('./services/db/nedb_logger')
 
 const { copy_anonymize_zip } = require('../services/upload/copy_anonymize_zip');
 // const { copy_anonymize_stream } = require('../services/upload/copy_anonymize_stream');
-const { file_checksum, uuidv4, isEmptyObject, promiseSerial } = require('../services/app_utils')
+const { file_checksum, uuidv4, isEmptyObject, promiseSerial, arrayUnique, isDevEnv, getDefaultUpdateChannel } = require('../services/app_utils')
 const { MizerError } = require('../services/errors');
 
 const CONSTANTS = require('../services/constants');
@@ -66,6 +66,22 @@ function summary_log_update(transfer_id, prop, val) {
     // TODO remove comment and add promise
     //db_uploads.updateProperty(transfer_id, 'summary', summary_log[transfer_id])
 }
+
+let logger_enabled = isDevEnv() || ['alpha', 'beta'].includes(getDefaultUpdateChannel())
+
+console.log({logger_enabled});
+
+function console_log(...log_this) {
+    if (!logger_enabled) {
+        return;
+    }
+
+    electron_log.info(...log_this);
+    console.log(...log_this);
+    //console.trace('<<<<== UPLOAD TRACE ==>>>>');
+    ipc.send('log', ...log_this);
+}
+
 
 
 
@@ -224,16 +240,23 @@ let items_uploaded = []
 
 let _queue_ = {
     items: [],
-    max_items: 4,
+    _processed: [],
+    max_items: 6,
     add: function(transfer_id, series_id) {
         if (this.items.length < _queue_.get_max_items()) {
             let transfer_label = transfer_id + '::' + series_id;
             if (this.items.indexOf(transfer_label) == -1) {
+                if (this.isInProcessed(transfer_label)) {
+                    console_log('Already processed ' + transfer_label);
+                    return false;
+                }
+
                 console_log('Added to queue ' + transfer_label);
                 
                 this.items.push(transfer_label);
-                console_red('_queue_items_ADD', this.items)
+                console_red('_queue_items_ADD', this.items);
                 return true;
+                
             } else {
                 
                 console_log('Already in queue ' + transfer_label);
@@ -259,8 +282,27 @@ let _queue_ = {
     },
     get_max_items: function() {
         return user_settings.get('zip_upload_mode') === true ? 1 : this.max_items
-    }
+    },
+    isInProcessed: function(transfer_label) {
+        return this._processed.includes(transfer_label)
+    },
+    addProcessed: function(transfer_id, series_id) {
+        let transfer_label = transfer_id + '::' + series_id;
+        this._processed.push(transfer_label);
+    },
+    removeProcessedTransfer: function(transfer_id) {
+        this._processed = this._processed.filter(single => single.indexOf(`${transfer_id}::`) !== 0)
+    },
+    getProcessedTransferSeries: function(transfer_id) {
+        return this._processed.reduce((processed, label) => {
+            if (label.indexOf(`${transfer_id}::`) === 0) {
+                processed.push(label.split(/::/)[1])
+            }
+            return processed;
+        }, [])
+    },
 }
+
 
 
 console_log(__filename);
@@ -275,25 +317,19 @@ do_transfer();
 //     ipc.send('custom_error', 'Upload Error', err.message);
 // }
 
-setInterval(do_transfer, 60000);
+setInterval(do_transfer, 20000);
 
 
-function console_log(...log_this) {
-    electron_log.info(...log_this);
-    //console.log(...log_this);
-    //console.trace('<<<<== UPLOAD TRACE ==>>>>');
-    ipc.send('log', ...log_this);
-}
-
-
-function do_transfer(source_series_id = 'initial', source_upload_success = true) {
+async function do_transfer(source_series_id = 'initial', source_upload_success = true) {
     let xnat_server = settings.get('xnat_server');
 
     let current_username = auth.get_current_user();
 
-    // db_uploads.listAll((err, my_transfers) => {
-    //     console_red('db_uploads.listAll', {my_transfers})
-    // });
+    console_log({
+        items: _queue_.items,
+        processed: _queue_._processed
+    });
+
 
     if (settings.get('global_pause')) {
         return;
@@ -301,39 +337,47 @@ function do_transfer(source_series_id = 'initial', source_upload_success = true)
 
     let _list_all_timer = performance.now();
 
-    db_uploads.listAll((err, my_transfers) => {
+    try {
+        let my_transfers = await db_uploads._listAll()
+
         let _list_all_took = ((performance.now() - _list_all_timer) / 1000).toFixed(2);
         console_red('_list_all_took', _list_all_took)
 
-        my_transfers.forEach((transfer) => {
-            // validate current user/server
-            if (transfer.xnat_server === xnat_server 
-                && transfer.user === current_username 
-                && transfer.canceled !== true
-                && typeof transfer.status === 'number'
-                && transfer.series_ids.length
-            ) {
-                transfer.series_ids.forEach((series_id) => {
-                    // if (source_upload_success && source_series_id === series_id) {
-                    
-                    //     return
-                    // }
-                    if (_queue_.add(transfer.id, series_id)) {
-                        console_red('double_snapshot', {
-                            source_series_id,
-                            target_series_id: series_id,
-                            _queue_items_: _queue_.items,
-                            status: transfer.status,
-                            series_ids: transfer.series_ids,
-                            done_series_ids: transfer.done_series_ids || []
-                        })
-                        doUpload(transfer, series_id);
-                    }
-                })
+        let current_transfers = my_transfers.filter(transfer => {
+            return transfer.xnat_server === xnat_server && 
+                transfer.user === current_username && 
+                transfer.canceled !== true && 
+                typeof transfer.status === 'number' && 
+                transfer.series_ids.length > 0
+        })
+
+        for (let i = 0; i < current_transfers.length; i++) {
+            let transfer = current_transfers[i]
+
+            for (let j = 0; j < transfer.series_ids.length; j++) {
+                let series_id = transfer.series_ids[j]
+
+                if (_queue_.add(transfer.id, series_id)) {
+
+                    console_red('double_snapshot', {
+                        source_series_id,
+                        target_series_id: series_id,
+                        _queue_items_: _queue_.items,
+                        _queue_processed_: _queue_.getProcessedTransferSeries(transfer.id),
+                        status: transfer.status,
+                        series_ids: transfer.series_ids,
+                        done_series_ids: transfer.done_series_ids || []
+                    })
+
+                    doUpload(transfer, series_id);
+                }
             }
-            
-        });
-    })
+
+        }
+
+    } catch (db_uploads_listAll_error) {
+        console_log({db_uploads_listAll_error});
+    }
     
 }
 
@@ -403,9 +447,9 @@ async function doUpload(transfer, series_id) {
             let series_script = mizer.generateAlterPixelCode(pixel_anon_series.rectangles);
             if (series_script.length) {
                 scripts.push(series_script)
-                console.log('************** AFTER ======');
+                console_log('************** AFTER ======');
                 scripts.forEach(scr => {
-                    console.log(scr);
+                    console_log(scr);
                 })
                 
             }
@@ -479,7 +523,7 @@ async function copy_and_anonymize(transfer, series_id, filePaths, contexts, vari
     
     // Fires when the entry's input has been processed and appended to the archive.
     archive.on('entry', async (entry_data) => {
-        //console.log(entry_data)
+        //console_log(entry_data)
         await update_progress_details(transfer, table_row, entry_data.stats.size);
         
         fs.unlink(entry_data.sourcePath, (err) => {
@@ -552,7 +596,7 @@ async function copy_and_anonymize(transfer, series_id, filePaths, contexts, vari
         // transformRequest: [(data, headers) => {
         //     // Do whatever you want to transform the data
         //     console_red('transformRequest')
-        //     console.log(data)
+        //     console_log(data)
         //     return data;
         // }],
         data: archive
@@ -595,7 +639,7 @@ async function copy_and_anonymize(transfer, series_id, filePaths, contexts, vari
         }
         
         const _transfer_copy_ = await replace_transfer_doc(current_transfer)
-        console.log({_transfer_copy_});
+        console_log({_transfer_copy_});
 
         checksum_index.remove_series(upload_id)
         console_red('store_checksums DONE');
@@ -603,13 +647,12 @@ async function copy_and_anonymize(transfer, series_id, filePaths, contexts, vari
 
     axios(request_settings)
     .then(async (res) => {
-        console.log({upload_request_response: res})
+        console_log({upload_request_response: res})
         console_red('zip upload done - res')
 
         await store_checksums(transfer.id, series_id, upload_id)
 
         remove_cancel_token(transfer.id, series_id)
-        //console.log(res)
 
         let data = {
             res: res
@@ -642,6 +685,8 @@ async function copy_and_anonymize(transfer, series_id, filePaths, contexts, vari
             console_log(`***** res.statusText  = '${res.statusText }' ******`);
             console_log(`***** res.data = '${res.data}' ******`);
             console_log('***** res.status = ' + res.status + ' ****** (' + (typeof res.status) + ')');
+
+            _queue_.removeProcessedTransfer(transfer.id)
 
             let session_link;
             let reference_str = '/data/prearchive/projects/';
@@ -683,7 +728,7 @@ async function copy_and_anonymize(transfer, series_id, filePaths, contexts, vari
 
             let commit_data = {};
 
-            console.log({transfer_XXX: transfer});
+            console_log({transfer_XXX: transfer});
 
             if (transfer.anon_variables.hasOwnProperty('tracer')) {
                 let label = transfer.session_data.modality.indexOf('MR') >=0 ? 'xnat:petMrSessionData/tracer/name' : 'xnat:petSessionData/tracer/name';                
@@ -691,7 +736,7 @@ async function copy_and_anonymize(transfer, series_id, filePaths, contexts, vari
                 commit_data[label] = transfer.anon_variables.tracer;
             }
 
-            console.log({commit_data});
+            console_log({commit_data});
             
             axios.post(commit_url, commit_data, commit_request_settings)
             .then(commit_res => {
@@ -861,8 +906,8 @@ async function copy_and_anonymize(transfer, series_id, filePaths, contexts, vari
         
                     } catch (error) {
                         console_red('copy/anonymization ERROR', {source, target})
-                        console.log({error});
-                        console.log(error.message);
+                        console_log({error});
+                        console_log(error.message);
                         electron_log.error(error)
                         electron_log.error(error.message)
     
@@ -1060,7 +1105,7 @@ async function copy_and_anonymize_zip(transfer, series_id, _files, contexts, var
 
     copy_anonymize_zip(_files, new_dirpath, contexts, variables)
         .then(async result => {
-            console.log({anon_checksums: result.checksums});
+            console_log({anon_checksums: result.checksums});
 
             let selected_series = transfer.series.find(ss => series_id == ss[0].seriesInstanceUid);
 
@@ -1070,12 +1115,12 @@ async function copy_and_anonymize_zip(transfer, series_id, _files, contexts, var
             })
 
             const _transfer_copy_ = await replace_transfer_doc(transfer)
-            console.log({_transfer_copy_});
+            console_log({_transfer_copy_});
 
             upload_zip(result.path, transfer, series_id, csrfToken)
         })
         .catch(err => {
-            console.log('FINAL', err)
+            console_log('FINAL', err)
             handleUploadError(transfer, series_id, err)
         })
     
@@ -1112,8 +1157,8 @@ async function upload_zip(zip_path, transfer, series_id, csrfToken) {
         auth: user_auth,
         onUploadProgress: function (progressEvent) {
             // Do whatever you want with the native progress event
-            console.log('=======', progressEvent, '===========');
-            console.log(progressEvent.loaded, progressEvent.total);
+            console_log('=======', progressEvent, '===========');
+            console_log(progressEvent.loaded, progressEvent.total);
 
             let new_progress = progressEvent.loaded / progressEvent.total * 100;
 
@@ -1191,8 +1236,9 @@ async function upload_zip(zip_path, transfer, series_id, csrfToken) {
             let items_in_queue = _queue_.items;
     
             console_red('mark_uploaded.then()', {series_id, transfer_series_ids, items_in_queue})
-            
-            if (transfer.series_ids.length === 0) {
+
+            let all_series_uploaded = await all_transfer_series_uploaded(transfer)
+            if (transfer.series_ids.length === 0 || all_series_uploaded) {
                 console_log(`**** COMMITING UPLOAD ${transfer.id} :: ${series_id}`);
                 console_log(`***** res.statusText  = '${res.statusText }' ******`);
                 console_log(`***** res.data = '${res.data}' ******`);
@@ -1228,7 +1274,7 @@ async function upload_zip(zip_path, transfer, series_id, csrfToken) {
     
                 let commit_data = {};
     
-                console.log({transfer_XXX: transfer});
+                console_log({transfer_XXX: transfer});
     
                 if (transfer.anon_variables.hasOwnProperty('tracer')) {
                     let label = transfer.session_data.modality.indexOf('MR') >=0 ? 'xnat:petMrSessionData/tracer/name' : 'xnat:petSessionData/tracer/name';                
@@ -1236,7 +1282,7 @@ async function upload_zip(zip_path, transfer, series_id, csrfToken) {
                     commit_data[label] = transfer.anon_variables.tracer;
                 }
     
-                console.log({commit_data});
+                console_log({commit_data});
                 
                 axios.post(commit_url, commit_data, commit_request_settings)
                 .then(commit_res => {
@@ -1336,6 +1382,25 @@ async function upload_zip(zip_path, transfer, series_id, csrfToken) {
     });
 }
 
+async function all_transfer_series_uploaded(transfer) {
+    if (transfer.series_ids.length === 0) {
+        return true
+    }
+
+    let all_series_uploaded = true;
+    for (let i = 0; i < transfer.series_ids.length; i++) {
+        let transfer_label = transfer.id + '::' + transfer.series_ids[i]
+        if (_queue_.isInProcessed(transfer_label)) {
+            console_log('all_transfer_series_uploaded PROCESSED: ' + transfer_label)
+            await mark_uploaded(transfer.id, transfer.series_ids[i])
+        } else {
+            all_series_uploaded = false;
+        }
+    }
+
+    return all_series_uploaded;
+}
+
 function respawn_transfer(transfer_id, series_id, success) {
     console_red('respawn_transfer', {transfer_id, series_id, success})
     do_transfer(series_id, success);
@@ -1343,24 +1408,22 @@ function respawn_transfer(transfer_id, series_id, success) {
 
 function mark_uploaded(transfer_id, series_id) {
     console.count('mark_uploaded')
-    console.count('mark_uploaded__' + series_id)
+    console.count('mark_uploaded__' + transfer_id + '::' + series_id)
+
+    _queue_.addProcessed(transfer_id, series_id)
     
     return new Promise((resolve, reject) => {
         db_uploads.getById(transfer_id, (err, db_transfer) => {
             // copy the response
             let transfer = lodashCloneDeep(db_transfer);
 
-            transfer.done_series_ids = transfer.done_series_ids || [];
+            let processed_series = _queue_.getProcessedTransferSeries(transfer_id)
 
-            let series_index = transfer.series_ids.indexOf(series_id);
+            transfer.series_ids = transfer.series_ids.filter(ser_id => {
+                return !processed_series.includes(ser_id)
+            })
+            transfer.done_series_ids = arrayUnique((transfer.done_series_ids || []).concat(processed_series));
 
-            if (series_index >= 0) {
-                transfer.series_ids.splice(series_index, 1);
-                transfer.done_series_ids.push(series_id)
-            } else {
-                console_red('NOT IN SERIES IDS', series_id)
-            }
-    
             let finished = transfer.table_rows.length - transfer.series_ids.length;
             let total = transfer.table_rows.length;
             let percent_complete = finished / total * 100
@@ -1374,6 +1437,12 @@ function mark_uploaded(transfer_id, series_id) {
                 field: "status",
                 value: percent_complete
             });
+
+            console_log({
+                id: 'mark_uploaded__' + transfer_id + '::' + series_id,
+                to_upload: transfer.series_ids,
+                done: transfer.done_series_ids
+            })
             
             db_uploads().update({ id: transfer_id }, {$set: {
                     status: new_status, 
@@ -1546,7 +1615,7 @@ function summary_add(transfer_id, series_id, text, label = '') {
         text: text
     });
 
-    console.log('summary_all', summary_all);
+    console_log('summary_all', summary_all);
 }
 
 

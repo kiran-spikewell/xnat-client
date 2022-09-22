@@ -292,3 +292,6 @@ exports.alNumDashUnderscore = (input, replacedBy = "_") => {
     return exports.replaceFactory(allowRegExp, input, replacedBy)
 }
 
+exports.arrayUnique = (arr) => {
+    return arr.filter((item, pos) => arr.indexOf(item) === pos)
+}
