@@ -17,6 +17,8 @@ const { isReallyWritable, isDevEnv, currentVersionChannel } = require('../servic
 
 const user_settings = require('../services/user_settings');
 
+const XNATAPI = require('../services/xnat-api')
+
 const test_environment = isDevEnv() || currentVersionChannel() === 'alpha';
 
 /*
@@ -370,6 +372,20 @@ function ipc_log(e, ...args){
     console_log(...args);
 };
 
+async function flush_user_cache () {
+    let xnat_server = settings.get('xnat_server');
+    let user_auth = settings.get('user_auth');
+    const xnat_api = new XNATAPI(xnat_server, user_auth)
+
+    try {
+        await xnat_api.flush_user_cache()
+        Helper.pnotify(null, 'User Cache was successfully flushed.');
+        loadPage('home.html')
+    } catch (axios_error) {
+        let response_status = axios_error.response && axios_error.response.status ? axios_error.response.status : '-'
+        ipcRenderer.send('custom_error', `Flush User Cache Request Error`, `Message: ${axios_error.message}.\nError status: ${response_status}.`)
+    }
+}
 
 // ===============
 // hide UI elements that are used for testing purposes
@@ -392,6 +408,7 @@ $(document).on('click', 'a', function(e){
     }
 })
 
+
 $(document).on('click', 'a.logo-header', function(e){
     e.preventDefault();
     let page = (!settings.has('user_auth') || !settings.has('xnat_server')) ? 'login.html' : 'home.html';
@@ -407,6 +424,10 @@ $(document).on('click', '#trigger_download', function(){
 
 $(document).on('click', '#menu--logout', function(){
     logout();
+})
+
+$(document).on('click', '#flush_user_cache', async function(){
+    await flush_user_cache()
 })
 
 $(document).on('click', '[data-href]', function() {
