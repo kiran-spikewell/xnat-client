@@ -2516,11 +2516,27 @@ $(document).on('click', '#upload-section a[data-project_id]', async function(e){
 
         const session_labels = project_settings.sessions.map(item => item.label)
         const prearchived_session_labels = project_settings.sessions_prearchived.map(item => item.name)
-        
+
+        // CALC existing project labels (currently in the queue) ****************
+        let my_transfers = await db_uploads._listAll()
+
+        let project_transfers = my_transfers.filter(transfer => {
+            return transfer.xnat_server === xnat_server && 
+                transfer.user === auth.get_current_user() && 
+                transfer.url_data.project_id === project_id
+        })
+
+        let project_transfers_labels = project_transfers.reduce((labels, transfer) => {
+            labels.push(transfer.url_data.expt_label)
+            return labels
+        }, [])
+
+        // **********************************************************************
+
         project_settings.computed = {
             scripts: scripts,
             anon_variables: mizer.get_scripts_anon_vars(scripts),
-            experiment_labels: session_labels.concat(prearchived_session_labels),
+            experiment_labels: session_labels.concat(prearchived_session_labels).concat(project_transfers_labels),
             pet_tracers: get_pet_tracers(project_settings.pet_tracers, site_wide_settings.pet_tracers, user_defined_pet_tracers(settings))
         }
 
