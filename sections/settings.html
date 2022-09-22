@@ -11,6 +11,8 @@
                         aria-selected="false">Application Defaults</a>
                     <a class="nav-item nav-link hidden" id="nav-user_settings-tab" data-toggle="tab" href="#nav-user_settings" role="tab" aria-controls="nav-user_settings"
                         aria-selected="false">User Settings</a>
+                    <a class="nav-item nav-link ml-auto mr-0" id="nav-debug-tab" data-toggle="tab" href="#nav-debug" role="tab" aria-controls="nav-debug"
+                        aria-selected="false">Debug</a>
                 </div>
             </nav>
             <div class="tab-content" id="nav-tabContent">
@@ -111,7 +113,7 @@
                     </form>
                 </div>
 
-                <div class="tab-pane fade show" id="nav-user_settings" role="tabpanel" aria-labelledby="nav-user_settings-tab">
+                <div class="tab-pane fade" id="nav-user_settings" role="tabpanel" aria-labelledby="nav-user_settings-tab">
                     <div class="row">
                         <div class="col-12">
                             <p>Suppress missing anonymization script warnings</p>
@@ -197,6 +199,16 @@
                     </div>
 
                 </div>
+
+                <div class="tab-pane fade" id="nav-debug" role="tabpanel" aria-labelledby="nav-debug-tab">
+                    <div class="row">
+                        <div class="col-12">
+                            <p>Open application's user data directory.</p>
+                            <button class="btn btn-blue" type="button" data-js="show-user-data-folder">Open User Data Directory</button>
+                        </div>
+                    </div>
+                </div>
+                
             </div>
         </div>
 

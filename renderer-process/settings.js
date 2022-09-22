@@ -3,7 +3,7 @@ const constants = require('../services/constants');
 const path = require('path');
 const ElectronStore = require('electron-store');
 const settings = new ElectronStore();
-const ipc = require('electron').ipcRenderer
+const ipcRenderer = require('electron').ipcRenderer
 const swal = require('sweetalert');
 
 const remote = require('electron').remote;
@@ -596,6 +596,10 @@ $on('click', '#save-pdf-destination', function(e) {
 
         $(this).closest('.modal').modal('hide')
     }
+})
+
+$on('click', '[data-js="show-user-data-folder"]', function() {
+    ipcRenderer.send('shell.showItemInFolder', app.getPath('userData') + path.sep + '.')
 })
 
 function update_pdf_settings_info() {

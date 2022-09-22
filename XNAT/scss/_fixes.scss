@@ -16,6 +16,12 @@ td.highlight {
     background: #E4EFFF;
 }
 
+#settings-section {
+    .tab-content {
+        min-height: calc(100vh - 191px);
+    }
+}
+
 #upload-section {
     .tab-content>.active {
         position: relative;
