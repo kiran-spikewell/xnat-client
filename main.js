@@ -696,14 +696,13 @@ ipcMain.on('clearVersion2DbFiles', (e, item) => {
 
 
 ipcMain.on('print_pdf', (e, html, destination, pdf_settings, filename_base, show_in_folder = true) => {
-  const file_name = `Upload-Receipt--${filename_base}-${Date.now()}` 
-  const pdf_filepath = path.join(destination, `${file_name}.pdf`)
-  const html_filepath = path.join(destination, `${file_name}.html`)
+  const pdf_filepath = path.join(destination, `${filename_base}.pdf`)
+  const html_filepath = path.join(destination, `${filename_base}.html`)
 
   try {
     fs.writeFileSync(html_filepath, html, 'utf8')
   } catch(err) {
-    showErrorBox('Greska', err)
+    showErrorBox('Error', err)
     return
   }
 

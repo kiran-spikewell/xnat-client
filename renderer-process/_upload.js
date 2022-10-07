@@ -385,13 +385,16 @@ function set_transfer_totals_summary(transfer) {
     if (!transfer.summary || isEmptyObject(transfer.summary)) {
 
         let total_files = transfer.series.reduce((total, ss) => {
-            return ss.length + total
+            return ss.data.length + total
         }, 0);
     
         let total_size = transfer.series.reduce((total, ss) => {
-            let series_size = ss.reduce((tt, item) => {
-                return tt + item.filesize;
+            let filesize_index = ss.dataIndex.indexOf('filesize')
+
+            let series_size = ss.data.reduce((tt, item) => {
+                return tt + item[filesize_index];
             }, 0);
+
             return series_size + total
         }, 0);
 
@@ -425,14 +428,17 @@ async function doUpload(transfer, series_id) {
     let updated_summary = await set_transfer_totals_summary(transfer)
     
 
-    let selected_series = transfer.series.find(ss => series_id == ss[0].seriesInstanceUid);
+    let selected_series = transfer.series.find(ss => series_id === ss.seriesInstanceUid);
 
     if (!selected_series) {
         //TODO - add logic if series doesn't exist
         // prob - remove from queue and return
     }
 
-    let _files = selected_series.map(item => item.filepath);
+    
+    let filepath_index = selected_series.dataIndex.indexOf('filepath')
+    let _files = selected_series.data.map(fileInfo => selected_series.commonPath + fileInfo[filepath_index])
+    // let _files = getScanFilesProperty(selected_series, 'filepath') ;
 
     let contexts, variables;
     
@@ -629,13 +635,16 @@ async function copy_and_anonymize(transfer, series_id, filePaths, contexts, vari
         let _current_transfer = await db_uploads._getById(transfer_id);
         let current_transfer = lodashCloneDeep(_current_transfer)
         
-        let selected_series = current_transfer.series.find(ss => series_id == ss[0].seriesInstanceUid);
+        let selected_series = current_transfer.series.find(ss => series_id === ss.seriesInstanceUid);
         let st_item = checksum_index.filter_series(upload_id)
+
+        let filepath_index = selected_series.dataIndex.indexOf('filepath')
+        let anon_checksum_index = selected_series.dataIndex.indexOf('anon_checksum')
 
         for (let i = 0; i < st_item.length; i++) {
             let sfile = st_item[i]
-            let selected_item = selected_series.find(item => item.filepath == sfile.source)
-            selected_item['anon_checksum'] = sfile.anon_checksum;
+            let selected_item = selected_series.data.find(fileInfo => selected_series.commonPath + fileInfo[filepath_index] == sfile.source)
+            selected_item[anon_checksum_index] = sfile.anon_checksum;
         }
         
         const _transfer_copy_ = await replace_transfer_doc(current_transfer)
@@ -1107,11 +1116,14 @@ async function copy_and_anonymize_zip(transfer, series_id, _files, contexts, var
         .then(async result => {
             console_log({anon_checksums: result.checksums});
 
-            let selected_series = transfer.series.find(ss => series_id == ss[0].seriesInstanceUid);
+            let selected_series = transfer.series.find(ss => series_id === ss.seriesInstanceUid);
+
+            let filepath_index = selected_series.dataIndex.indexOf('filepath')
+            let anon_checksum_index = selected_series.dataIndex.indexOf('anon_checksum')
 
             result.checksums.forEach(sfile => {
-                let selected_item = selected_series.find(item => item.filepath == sfile.source)
-                selected_item['anon_checksum'] = sfile.anon_checksum;
+                let selected_item = selected_series.data.find(fileInfo => selected_series.commonPath + fileInfo[filepath_index] == sfile.source)
+                selected_item[anon_checksum_index] = sfile.anon_checksum;
             })
 
             const _transfer_copy_ = await replace_transfer_doc(transfer)

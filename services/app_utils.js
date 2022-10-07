@@ -3,7 +3,6 @@ const path = require('path')
 const fs = require('fs')
 const checksum = require('checksum')
 const FileSaver = require('file-saver')
-const { glob } = require('glob')
 
 const ElectronStore = require('electron-store')
 const settings = new ElectronStore()
@@ -40,15 +39,6 @@ exports.setUpdateChannel = (channel) => {
         channel = 'latest'
     }
     return settings.set('electron-updater-channel', channel)
-}
-
-exports.getJsonDbFiles = (dbType = '*') => {
-    const app = this.getApp()
-    const appDataDir = app.getPath('userData')
-    const fileRegex = dbType === '*' ? `db.*.json` : `db.${dbType}.*.json`
-    const dbPath = path.join(appDataDir, fileRegex)
-
-    return glob.sync(dbPath)
 }
 
 exports.clearDefaultTempFiles = () => {
@@ -261,7 +251,6 @@ function normalizeTimeString(only_numbers) {
     }
 }
 exports.normalizeTimeString = normalizeTimeString
-
 
 // INFO: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions#escaping
 const escapeRegExp = (str) => {

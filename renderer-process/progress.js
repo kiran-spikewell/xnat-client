@@ -25,6 +25,7 @@ const ejs_template = require('../services/ejs_template')
 const path = require('path')
 
 const { objArrayToCSV, objToJsonFile } = require('../services/app_utils');
+const { getScanFilesProperty } = require('../services/db/utils');
 
 const { console_red } = require('../services/logger');
 
@@ -766,6 +767,7 @@ $(document).on('show.bs.modal', '#error-log--upload', function(e) {
     });
 });
 
+// TODO - I think this is stale ... consider removing
 $(document).on('show.bs.modal', '#view-receipt', async function(e) {
     var id = $(e.relatedTarget).data('id');
     
@@ -1828,17 +1830,16 @@ async function generate_pdf_receipt_html(transfer_id) {
         user: transfer.user,
         session_data: transfer.session_data,
         computed: {
-            start_upload: moment(transfer.transfer_start * 1000).format('YYYY-MM-DD HH:mm:ss')
+            start_upload: moment(transfer.transfer_start * 1000).format('YYYY-MM-DD HH:mm:ss'),
+            finished_upload: moment().format('YYYY-MM-DD HH:mm:ss')
         },
         anon_variables: transfer.anon_variables,
-        series: transfer.series.map(item => {
-            return item.map(single => {
-                return {
-                    seriesInstanceUid: single.seriesInstanceUid,
-                    filename: single.filename,
-                    anon_checksum: single.anon_checksum,
-                }
-            })
+        series: transfer.series.map(ss => {
+            return {
+                seriesInstanceUid: ss.seriesInstanceUid,
+                filenames: getScanFilesProperty(ss, 'filename'),
+                anon_checksums: getScanFilesProperty(ss, 'anon_checksum')
+            }
         })
     }
 
@@ -1854,7 +1855,7 @@ async function generate_pdf_receipt_html(transfer_id) {
 async function generate_pdf_receipt_filename(transfer_id) {
     let transfer = await db_uploads._getById(transfer_id)
 
-    return `${transfer.url_data.expt_label}-${user_auth.username}`;
+    return `Upload-Receipt--${transfer.url_data.expt_label}-${user_auth.username}-${Date.now()}`;
 }
 
 
@@ -1873,7 +1874,6 @@ async function generate_pdf_receipt(transfer_id) {
     }
 
     const pdf_filepath = path.join(pdf_destination, `${filename_base}.pdf`)
-
     db_uploads._updateProperty(transfer_id, 'pdf_receipt_path', pdf_filepath)
 
     ipc.send('print_pdf', html, pdf_destination, pdf_settings, filename_base, false);
