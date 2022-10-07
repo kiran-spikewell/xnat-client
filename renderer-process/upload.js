@@ -3194,7 +3194,9 @@ async function handle_custom_upload() {
         let url_data = {
             expt_label: expt_label_val ? expt_label_val : experiment_label(),
             project_id: get_form_value('project_id', 'project_id'),
-            subject_id: $('#var_subject').val()
+            subject_id: $('#var_subject').val(),
+            visit_id: $('#var_visit').val(),
+            subtype: $('#var_subtype').val()
         };
 
         let my_anon_variables = {};
