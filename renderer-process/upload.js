@@ -27,17 +27,17 @@ const XNATAPI = require('../services/xnat-api')
 const { 
     random_string, 
     saveAsCSV, 
-    objToJsonFile, 
     normalizeDateString, 
     normalizeTimeString, 
     normalizeDateTimeString,
     alNum
 } = require('../services/app_utils')
+
+const { optimizeUploadDigest } = require('../services/db/utils')
 const { selected_sessions_table, custom_upload_multiple_table, validate_custom_upload_multiple_details, selected_scans_table } = require('../services/tables/upload-prepare')
 const { findSOPClassUID } = require('../services/upload/sop_class_uids')
 const templateEngine = require('../services/template_engine')
 const ejs_template = require('../services/ejs_template')
-
 
 const {
     DEFAULT_RECENT_UPLOAD_PROJECTS_COUNT, 
@@ -2365,7 +2365,6 @@ function get_current_series_id() {
 }
 
 
-
 $(document).on('page:load', '#upload-section', async function(e){
     console.log('Upload page:load triggered');
 
@@ -4415,6 +4414,8 @@ async function storeUpload(url_data, session_id, series_ids, _anon_variables) {
         status: 0,
         canceled: false
     };
+
+    upload_digest = optimizeUploadDigest(upload_digest)
 
     console.log({upload_digest});
 

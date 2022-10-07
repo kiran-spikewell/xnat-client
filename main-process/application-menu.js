@@ -3,7 +3,6 @@ const path = require('path')
 const {app, BrowserWindow, Menu, shell, Tray} = electron;
 
 const download_log = require('../services/download_log')
-const { getJsonDbFiles, clearDefaultTempFiles } = require('../services/app_utils')
 
 const version = app.getVersion();
 
@@ -43,17 +42,6 @@ let template = [
                     download_log()
                 }
             },
-            /*
-            {
-                label: 'Clear Temporary and DB files',
-                click: async function(item, focusedWindow, event){
-                    // TODO: resolve the following
-                    clearJsonDbFiles() // needs application restart
-                    await clearDefaultTempFiles() // dangerous if upload or download is in progress!!!
-                },
-                enabled: false
-            },
-            */
             {
                 label: 'Quit',
                 accelerator: isMac() ? 'Command+Q' : 'Ctrl+Q',
@@ -146,14 +134,6 @@ if (process.env.NODE_ENV !== 'production') {
 // helpers
 function isMac() {
     return process.platform === 'darwin';
-}
-
-function clearJsonDbFiles() {
-    const dbFiles = getJsonDbFiles()
-
-    for (let i = 0; i < dbFiles.length; i++) {
-        fs.unlinkSync(dbFiles[i])
-    }
 }
 
 app.on('ready', function () {

@@ -25,6 +25,7 @@ const ejs_template = require('../services/ejs_template')
 const path = require('path')
 
 const { objArrayToCSV, objToJsonFile } = require('../services/app_utils');
+const { getScanFilesProperty } = require('../services/db/utils');
 
 const { console_red } = require('../services/logger');
 
@@ -41,28 +42,7 @@ NProgress.configure({
 
 let xnat_server, user_auth;
 
-function upload_checksum_errors() {
-    db_uploads.listAll((err, uploads) => {
-        let my_errors = {};
-        uploads.forEach((transfer) => {
-            if (transfer.xnat_server === xnat_server && transfer.user === user_auth.username) {
-                my_errors[transfer.id] = [];
-                transfer.series.forEach(series => {
-                    series.forEach(sFile => {
-                        if (!sFile.hasOwnProperty('anon_checksum') || typeof sFile.anon_checksum !== 'string' || sFile.anon_checksum.length != 32) {
-                            my_errors[transfer.id].push(sFile)
-                        }
-                    })
-                })
-            }
-        });
-        console.log({my_errors});
-    })
-}
-
 function _init_upload_progress_table() {
-    // upload_checksum_errors()
-
     $('#upload_monitor_table').bootstrapTable({
         filterControl: true,
         hideUnusedSelectOptions: true,
@@ -644,7 +624,7 @@ function downloadCsvLog(id) {
     })
 }
 
-$(document).on('show.bs.modal', '#download-details', function(e) {
+$on('show.bs.modal', '#download-details', function(e) {
     var id = $(e.relatedTarget).data('id');
     var file = $(e.relatedTarget).data('file');
     var show_transfer_rate = $(e.relatedTarget).data('show_transfer_rate');
@@ -715,7 +695,7 @@ function set_download_details_total_percentage(transfer_id) {
 
 }
 
-$(document).on('show.bs.modal', '#error-log--download', function(e) {
+$on('show.bs.modal', '#error-log--download', function(e) {
     var transfer_id = $(e.relatedTarget).data('id');
     $('#error-log--download .modal-content').attr('data-id', transfer_id);
 
@@ -727,8 +707,10 @@ $(document).on('show.bs.modal', '#error-log--download', function(e) {
     });
 });
 
-$(document).on('show.bs.modal', '#error-log--upload', function(e) {
-    var transfer_id = $(e.relatedTarget).data('id');
+$on('show.bs.modal', '#error-log--upload', function(e) {
+    let button_data_id = $(e.relatedTarget).data('id')
+    let transfer_id = button_data_id ? button_data_id : $(this).data('id');
+
     $('#error-log--upload .modal-content').attr('data-id', transfer_id);
     var log = $(this).find('.log-text');
     nedb_log_reader.fetch_log(transfer_id, (err, docs) => {
@@ -766,130 +748,33 @@ $(document).on('show.bs.modal', '#error-log--upload', function(e) {
     });
 });
 
-$(document).on('show.bs.modal', '#view-receipt', async function(e) {
-    var id = $(e.relatedTarget).data('id');
-    
-    let transfer = await db_uploads._getById(id)
-
-    // trim unused data for performance
-    const _transfer = {
-        session_link: transfer.session_link,
-        user: transfer.user,
-        session_data: transfer.session_data,
-        computed: {
-            start_upload: moment(transfer.transfer_start * 1000).format('YYYY-MM-DD HH:mm:ss')
-        },
-        anon_variables: transfer.anon_variables,
-        series: transfer.series.map(item => {
-            return item.map(single => {
-                return {
-                    seriesInstanceUid: single.seriesInstanceUid,
-                    filename: single.filename,
-                    anon_checksum: single.anon_checksum,
-                }
-            })
-        })
-    }
-
-    let tpl_function = ejs_template.compile('upload/upload-receipt')
-    let parsed_tpl = tpl_function(_transfer)
-
-    $('#receipt-content').html(parsed_tpl)
-    $('#receipt-to-pdf').data('expt_label', transfer.url_data.expt_label)
+$on('hide.bs.modal', '#upload-details', function() {
+    $$('#upload-success-log.modal.show').show()
 })
 
-$(document).on('click', '#receipt-to-pdf', function() {
-    
-    $$('#pdf_destination').val(user_settings.getDefault('receipt_pdf_settings--destination', ''))
+$on('show.bs.modal', '#upload-details', function(e) {
+    $$('#upload-success-log.modal.show').hide()
 
-    let orientation = user_settings.getDefault('receipt_pdf_settings--orientation', false)
-    if (orientation) {
-        $$('[name="pdf_orientation"]', '#upload-receipt-destination').each(function() {
-            const is_checked = $(this).val() === orientation
-            $(this).prop("checked", is_checked)
-        })
-    }
+    let id = $(e.relatedTarget).data('id');
+    let data_archive = $(e.relatedTarget).data('archive'); // true / false
+    let archive = data_archive ? true : false
 
-    let pagesize = user_settings.getDefault('receipt_pdf_settings--pagesize', false)
-    if (pagesize) {
-        $$('[name="pdf_pagesize"]', '#upload-receipt-destination').each(function() {
-            const is_checked = $(this).val() === pagesize
-            $(this).prop("checked", is_checked)
-        })
-    }
-
-    $('#upload-receipt-destination').modal('show')
-});
-
-$(document).on('show.bs.modal', '#upload-receipt-destination', function(e) {
-    $('#view-receipt').css('z-index', 1040)
-})
-
-$(document).on('hide.bs.modal', '#upload-receipt-destination', function(e) {
-    $('#view-receipt').css('z-index', '')
-})
-
-$on('click', '#save-pdf-destination', function(e) {
-    const pdf_destination = $$('#pdf_destination').val()
-    const pdf_orientation = $$('[name="pdf_orientation"]:checked').val()
-    const landscape_setting = pdf_orientation === 'landscape'
-    const pdf_pagesize = $$('[name="pdf_pagesize"]:checked').val();
-
-    if (pdf_destination) {
-        // store pdf settings
-        user_settings.set('receipt_pdf_settings--destination', pdf_destination)
-        user_settings.set('receipt_pdf_settings--orientation', pdf_orientation)
-        user_settings.set('receipt_pdf_settings--pagesize', pdf_pagesize)
-
-        $(this).closest('.modal').modal('hide');
-
-        let partial = $$('#view-receipt .modal-body').html();
-
-        let html = partial.replace(/\n/g, " ");
-        html = html.replace(/\s+/g, " ");
-
-        html = `<html><body>${html}</body></html>`
-
-        const pdf_settings = {
-            landscape: landscape_setting,
-            marginsType: 0,
-            printBackground: false,
-            printSelectionOnly: false,
-            pageSize: pdf_pagesize
-        }
-
-        const expt_label = $$('#receipt-to-pdf').data('expt_label')
-        const filename_base = `${expt_label}-${user_auth.username}`;
-        // METHOD 3:
-        ipc.send('print_pdf', html, pdf_destination, pdf_settings, filename_base);
-    }
-    
-})
-
-$(document).on('change', '#pdf_destination_folder', function(e) {
-    if (this.files.length) {
-        let pth = this.files[0].path;
-
-        $('#pdf_destination').val(pth);
-    }
-});
-
-
-$(document).on('show.bs.modal', '#upload-details', function(e) {
-    var id = $(e.relatedTarget).data('id');
+    console.log({data_archive, archive});
 
     var show_transfer_rate = $(e.relatedTarget).data('show_transfer_rate');
     $(e.currentTarget).find('#transfer_rate_upload').toggle(show_transfer_rate)
 
-    var session_label = $(e.relatedTarget).data('session_label');
+    let session_label = $(e.relatedTarget).data('session_label');
 
     $(e.currentTarget).find('#session_label').html(session_label);
 
     $('#upload-details .modal-content').attr('data-id', id);
 
-    set_upload_details_total_percentage(id)
+    if (!archive) {
+        set_upload_details_total_percentage(id)
+    }
 
-    _init_upload_details_table(id)
+    _init_upload_details_table(id, archive)
 
     nedb_log_reader.fetch_log(id, (err, docs) => {
         console.log(docs);
@@ -945,29 +830,38 @@ function set_upload_details_total_percentage(transfer_id) {
 }
 
 // fix modal from modal body overflow problem
-$(document).on('shown.bs.modal', '#upload-details', function(e) {
+$on('shown.bs.modal', '#upload-details', function(e) {
     $('body').addClass('modal-open')
 });
 
-$(document).on('show.bs.modal', '#upload-success-log', function(e) {
-    var transfer_id = $(e.relatedTarget).data('id');
+$on('click', '[data-js-view-receipt-link]', function(e) {
+    const pdf_receipt_path = $(this).data('pdf_receipt_path')
+    ipc.send('shell.showItemInFolder', pdf_receipt_path)
+})
+
+// TODO - this is almost duplicated feature from progress-archive.js
+// consider merging this feature/modal
+$on('show.bs.modal', '#upload-success-log', function(e) {
+    console.log($(e.currentTarget));
+
+    let button_data_id = $(e.relatedTarget).data('id')
+    let transfer_id = button_data_id ? button_data_id : $(this).data('id');
 
     $('#upload-success-log .modal-content').attr('data-id', transfer_id);
 
-    db_uploads.getById(transfer_id, (err, my_transfer) => {
+    db_uploads_archive.getById(transfer_id, (err, my_transfer) => {
         console.log(my_transfer);
-        console.log($(e.currentTarget));
     
         let $log_text = $(e.currentTarget).find('.log-text');
         $log_text.html('');
     
-        $('#upload-details-link').data({
+        $$('#upload-details-link').data({
             id: my_transfer.id,
             session_label: my_transfer.url_data.expt_label
         });
 
-        $('#view-receipt-link').data({
-            id: my_transfer.id
+        $$('[data-js-view-receipt-link]').data({
+            pdf_receipt_path: my_transfer.pdf_receipt_path
         });
 
         for (key in my_transfer.session_data) {
@@ -997,7 +891,7 @@ $(document).on('show.bs.modal', '#upload-success-log', function(e) {
     
 });
 
-$(document).on('shown.bs.tab', '#progress-section .nav-tabs a', function (e) {
+$on('shown.bs.tab', '#progress-section .nav-tabs a', function (e) {
     let transfer_label = e.currentTarget.id === 'nav-upload-tab' ? 'Upload' : 'Download';
     $('#progress-section #transfer-type').text(transfer_label)
 });
@@ -1175,7 +1069,7 @@ function _init_download_details_table(transfer_id) {
     //$('#download-details-table').closest('.bootstrap-table').after(`<button type="button" data="" class="btn btn-blue">Open</button>`)
 }
 
-function _init_upload_details_table(transfer_id) {
+function _init_upload_details_table(transfer_id, archive = false) {
     function init_bootstrap_table(transfer) {
         $('#upload-details-table').bootstrapTable('destroy');
         $('#upload-details-table').bootstrapTable({
@@ -1228,9 +1122,10 @@ function _init_upload_details_table(transfer_id) {
             data: []
         });
     }
-    
 
-    db_uploads.getById(transfer_id, (err, transfer) => {
+    const db = archive ? db_uploads_archive : db_uploads
+
+    db.getById(transfer_id, (err, transfer) => {
         init_bootstrap_table(transfer);
 
         let $details = $('#upload-details');
@@ -1258,7 +1153,7 @@ function _init_upload_details_table(transfer_id) {
 }
 
 
-$(document).on('click', '.js_cancel_download', function(e){
+$on('click', '.js_cancel_download', function(e){
     let $button = $(this);
     
     let transfer_id = $button.data('transfer_id');
@@ -1395,7 +1290,7 @@ $on('click', '[data-save-txt]', function(){
 
 
 
-$(document).on('click', '.js_cancel_all_transfers', function(){
+$on('click', '.js_cancel_all_transfers', function(){
     let global_pause = settings.get('global_pause')
     settings.set('global_pause', true);
 
@@ -1421,7 +1316,7 @@ $(document).on('click', '.js_cancel_all_transfers', function(){
     
 });
 
-$(document).on('click', '.js_restart_all_transfers', function(){
+$on('click', '.js_restart_all_transfers', function(){
     let global_pause = settings.get('global_pause');
     settings.set('global_pause', true);
 
@@ -1447,7 +1342,7 @@ $(document).on('click', '.js_restart_all_transfers', function(){
     
 });
 
-$(document).on('click', '.js_pause_all', function(){
+$on('click', '.js_pause_all', function(){
     let new_pause_status = !settings.get('global_pause');
     global_pause_status(new_pause_status)
 });
@@ -1471,7 +1366,7 @@ function global_pause_status(new_pause_status) {
     Helper.pnotify(`${title} All Transfers`, `All Transfers Successfully ${body}.`, 'success', 3000);
 }
 
-$(document).on('click', '.js_clear_finished', function(){
+$on('click', '.js_clear_finished', function(){
 
     Promise.all([
         db_uploads._listAll(), 
@@ -1759,16 +1654,7 @@ function progress_bar_html(my_value, my_text) {
 }
 
 ipc.on('upload_finished', async function(e, transfer_id){
-    let $modal_content = $(`#upload-details [data-id=${transfer_id}]`);
-
-    console_red('ipc.on upload_finished', $modal_content.length, $modal_content.is(':visible'))
-
-    if ($modal_content.is(':visible')) {
-        $(`#upload-details`).modal('hide');
-        $(`tr[data-uniqueid=${transfer_id}] button[data-toggle=modal]`).trigger('click');
-    }
-
-    
+    let transfer = await db_uploads._getByIdCopy(transfer_id)
     // add PDF settings
     if (user_settings.getDefault('receipt_pdf_settings--enabled', false)) {
         await generate_pdf_receipt(transfer_id)
@@ -1776,6 +1662,20 @@ ipc.on('upload_finished', async function(e, transfer_id){
 
     await remove_finished_upload(transfer_id)
 
+
+    let $modal_content = $(`#upload-details [data-id=${transfer_id}]`);
+
+    if ($modal_content.is(':visible')) {
+        $(`#upload-details`).modal('hide');
+
+        if (transfer.status === 'finished') {
+            $$('#upload-success-log').data('id', transfer_id).modal('show')
+        } else if (transfer.status === 'xnat_error') {
+            $$('#error-log--upload').data('id', transfer_id).modal('show')
+        }
+        // open correct modal
+        // $(`tr[data-uniqueid=${transfer_id}] button[data-toggle=modal]`).trigger('click');
+    }
 })
 
 
@@ -1828,17 +1728,16 @@ async function generate_pdf_receipt_html(transfer_id) {
         user: transfer.user,
         session_data: transfer.session_data,
         computed: {
-            start_upload: moment(transfer.transfer_start * 1000).format('YYYY-MM-DD HH:mm:ss')
+            start_upload: moment(transfer.transfer_start * 1000).format('YYYY-MM-DD HH:mm:ss'),
+            finished_upload: moment().format('YYYY-MM-DD HH:mm:ss')
         },
         anon_variables: transfer.anon_variables,
-        series: transfer.series.map(item => {
-            return item.map(single => {
-                return {
-                    seriesInstanceUid: single.seriesInstanceUid,
-                    filename: single.filename,
-                    anon_checksum: single.anon_checksum,
-                }
-            })
+        series: transfer.series.map(ss => {
+            return {
+                seriesInstanceUid: ss.seriesInstanceUid,
+                filenames: getScanFilesProperty(ss, 'filename'),
+                anon_checksums: getScanFilesProperty(ss, 'anon_checksum')
+            }
         })
     }
 
@@ -1854,7 +1753,7 @@ async function generate_pdf_receipt_html(transfer_id) {
 async function generate_pdf_receipt_filename(transfer_id) {
     let transfer = await db_uploads._getById(transfer_id)
 
-    return `${transfer.url_data.expt_label}-${user_auth.username}`;
+    return `Upload-Receipt--${transfer.url_data.expt_label}-${user_auth.username}-${Date.now()}`;
 }
 
 
@@ -1873,7 +1772,6 @@ async function generate_pdf_receipt(transfer_id) {
     }
 
     const pdf_filepath = path.join(pdf_destination, `${filename_base}.pdf`)
-
     db_uploads._updateProperty(transfer_id, 'pdf_receipt_path', pdf_filepath)
 
     ipc.send('print_pdf', html, pdf_destination, pdf_settings, filename_base, false);
