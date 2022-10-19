@@ -168,7 +168,7 @@ function initialize () {
     
 
     // Launch fullscreen with DevTools open, usage: yarn dev
-    if (isDevEnv()) {
+    if (true || isDevEnv()) {
       mainWindow.webContents.openDevTools()
       mainWindow.maximize()
       require('devtron').install()
@@ -177,9 +177,9 @@ function initialize () {
       uploadWindow.webContents.openDevTools()
       uploadWindow.maximize()
 
-      downloadWindow.show()
-      downloadWindow.webContents.openDevTools()
-      downloadWindow.maximize()
+      // downloadWindow.show()
+      // downloadWindow.webContents.openDevTools()
+      // downloadWindow.maximize()
     }
 
 
