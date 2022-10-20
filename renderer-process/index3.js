@@ -379,11 +379,11 @@ async function flush_user_cache () {
 
     try {
         await xnat_api.flush_user_cache()
-        Helper.pnotify(null, 'User Cache was successfully flushed.');
+        Helper.pnotify(null, 'XNAT User Access Cache was successfully flushed.');
         loadPage('home.html')
     } catch (axios_error) {
         let response_status = axios_error.response && axios_error.response.status ? axios_error.response.status : '-'
-        ipcRenderer.send('custom_error', `Flush User Cache Request Error`, `Message: ${axios_error.message}.\nError status: ${response_status}.`)
+        ipcRenderer.send('custom_error', `Flush XNAT User Access Cache Request Error`, `Message: ${axios_error.message}.\nError status: ${response_status}.`)
     }
 }
 

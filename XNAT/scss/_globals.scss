@@ -149,15 +149,15 @@ header {
 			position: absolute;
 			display: none;
 			z-index: 100;
-			width: 154px;
+			width: 252px;
 			top: 40px;
-			left: -55px;
+			left: 0px;
 			background: $menu-back;
 			border: 1px solid $menu-border;
 			border-top: none;
 			a {
 				width:100%;
-				padding:3px 10px;
+				padding:3px 8px;
 				float: left;
 				font-size: 16px;
 				font-weight: 700;
