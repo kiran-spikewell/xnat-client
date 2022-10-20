@@ -159,12 +159,12 @@ function _init_upload_progress_table() {
                             
                         case 'xnat_error':
                             content = `
-                            <button class="btn btn-block btn-danger" 
+                            <button class="btn btn-danger" 
                                 data-toggle="modal" 
                                 data-target="#error-log--upload"
                                 data-id="${row.id}"
                                 ><i class="fas fa-exclamation-triangle"></i> Log</button>
-                            `;
+                            ` + btn_delete;
                             break;
                         
                         default: // float
