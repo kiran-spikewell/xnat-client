@@ -82,9 +82,6 @@ function console_log(...log_this) {
     ipc.send('log', ...log_this);
 }
 
-
-
-
 ipc.on('start_upload',function(e, item){
     console_red('ipc.on :: start_upload');
     setTimeout(do_transfer, 200);
@@ -241,7 +238,6 @@ let items_uploaded = []
 let _queue_ = {
     items: [],
     _processed: [],
-    max_items: 6,
     add: function(transfer_id, series_id) {
         if (this.items.length < _queue_.get_max_items()) {
             let transfer_label = transfer_id + '::' + series_id;
@@ -281,7 +277,8 @@ let _queue_ = {
         this.items = this.items.filter(single => single.indexOf(`${transfer_id}::`) !== 0)
     },
     get_max_items: function() {
-        return user_settings.get('zip_upload_mode') === true ? 1 : this.max_items
+        return user_settings.get('zip_upload_mode') === true ? 1 : 
+            user_settings.get('upload_concurrency') || CONSTANTS.DEFAULT_UPLOAD_CONCURRENCY;
     },
     isInProcessed: function(transfer_label) {
         return this._processed.includes(transfer_label)

@@ -51,6 +51,7 @@ function display_user_preferences() {
     show_default_temp_storage();
     show_default_upload_mode();
     show_recent_upload_projects_count();
+    show_upload_concurrency();
     update_pdf_settings_info();
 }
 
@@ -168,6 +169,38 @@ $(document).on('click', '#save_recent_upload_projects_count', function(e) {
     
 });
 
+
+function show_upload_concurrency() {
+    let upload_concurrency = user_settings.get('upload_concurrency') !== undefined ? 
+        user_settings.get('upload_concurrency') : constants.DEFAULT_UPLOAD_CONCURRENCY;
+    $('#upload_concurrency').attr('max', constants.MAX_UPLOAD_CONCURRENCY).val(upload_concurrency);
+}
+
+$(document).on('input', '#upload_concurrency', function(e) {
+    $('#save_upload_concurrency').prop('disabled', false);
+});
+
+$(document).on('click', '#save_upload_concurrency', function(e) {
+    e.preventDefault();
+
+    if ($('#upload_concurrency').is(':invalid')) {
+        swal({
+            title: "Error!",
+            text: "Please validate `Upload Concurrency` field",
+            icon: "error",
+            button: "Okay",
+          });
+    } else {
+        let upload_concurrency = parseInt($('#upload_concurrency').val() || constants.DEFAULT_UPLOAD_CONCURRENCY);
+        
+        user_settings.set('upload_concurrency', upload_concurrency);
+
+        Helper.pnotify('Success!', `Upload concurrency successfully updated! (New value: ${upload_concurrency})`);
+        
+        $(this).prop('disabled', true);
+    }
+    
+});
 
 function render_users() {
     let logins = settings.get('logins') || [];
