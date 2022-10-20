@@ -656,7 +656,6 @@ async function copy_and_anonymize(transfer, series_id, filePaths, contexts, vari
 
     axios(request_settings)
     .then(async (res) => {
-        console_log({upload_request_response: res})
         console_red('zip upload done - res')
 
         await store_checksums(transfer.id, series_id, upload_id)
