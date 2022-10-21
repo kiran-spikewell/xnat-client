@@ -1,0 +1,56 @@
+<p class="text-right mb-2"><button type="button"
+    class="btn btn-sm btn-icon btn-gray" 
+    title="Refresh the table"
+    data-js-table-reload="1"><i class="fas fa-sync"></i></button></p>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th scope="col">Database</th>
+            <th scope="col">DB File</th>
+            <th scope="col" class="text-right">Size</th>
+            <th scope="col" class="text-right">Records</th>
+            <th scope="col" class="text-right">Action</th>
+        </tr>
+    </thead>
+    <tfoot>
+        <tr>
+            <% let allDbsSize = dbData.reduce((t, db) => t + db.filesize, 0) %>
+            <td colspan="5" class="text-right">
+                <button type="button"
+                    <%= allDbsSize === 0 ? 'disabled="disabled"' : '' %>
+                    class="btn btn-gray" 
+                    style="padding-left: .5em; padding-right: .5em;"
+                    title="Clear all databases"
+                    data-js-empty-dbs><i class="fas fa-minus-circle"></i> Empty All Databases</button>
+
+            </td>
+        </tr>
+    </tfoot>
+    <tbody>
+        <% for (singleDb of dbData) { %>
+        <tr>
+            <th scope="row"><%= singleDb.name %></th>
+            <td>
+                <a href="#" title="<%= singleDb.filepath %>" data-js-db-filepath="<%= singleDb.filepath %>"><i class="fas fa-external-link-alt"></i></a>
+                <%= singleDb.basename %>
+            </td>
+            <td class="text-right">
+                <% let badgeClass = singleDb.filesize === 0 ? 'light' : 'success'; %>
+                <span style="font-size: 1.2em; line-height: 1em;"><span class="badge badge-<%= badgeClass %>"
+                ><%= singleDb.filesizeHuman %></span></span>
+            </td>
+            <td class="text-right"><%= singleDb.dbCount %></td>
+            <td>
+                <button type="button"
+                        <%= singleDb.filesize === 0 ? 'disabled="disabled"' : '' %>
+                        class="btn btn-gray btn-sm float-right" 
+                        style="padding-left: .5em; padding-right: .5em;"
+                        title="Clear database <%= singleDb.name %>"
+                        data-js-empty-db="<%= singleDb.name %>"><i class="fas fa-minus-circle"></i> Empty DB</button>
+            </td>
+        </tr>
+        <% } %>
+    </tbody>
+</table>
+

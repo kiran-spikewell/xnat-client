@@ -1,91 +1,63 @@
 const { ipcRenderer, remote } = require('electron');
 const app = remote.app
 
-const { glob } = require('glob')
 const path = require('path')
 const fs = require('fs')
 const bytes = require('bytes')
 const swal = require('sweetalert')
 
+const ejs_template = require('../services/ejs_template')
 
-const ElectronStore = require('electron-store')
-const settings = new ElectronStore()
-const auth = require('../services/auth')
-const sha1 = require('sha1')
+const db_uploads = remote.require('./services/db/uploads')
+const db_uploads_archive = remote.require('./services/db/uploads_archive')
+const db_downloads = remote.require('./services/db/downloads')
+const db_downloads_archive = remote.require('./services/db/downloads_archive')
 
 const dom_context = '#json-stats'
 const { $$, $on } = require('../services/selector_factory')(dom_context)
 
-$on('page:load', dom_context, function(e){
-    $$('#user-data-path').text(app.getPath('userData'))
+async function populateJsonDbData(confirm = false) {
+    let databases = [db_uploads, db_uploads_archive, db_downloads, db_downloads_archive]
 
-    populateJsonDbData()
-})
+    let dbData = await Promise.all(
+        databases.map(async (db) => {
+            let filepath = db().persistence.filename
+            let basename = path.basename(filepath)
+            let name = basename.split('.')[1]
+            let filesize = getFilesizeInBytes(filepath)
+            let filesizeHuman = bytes(filesize, {decimalPlaces: 0, unitSeparator: ' '})
+            let dbCount = await coundDbItems(db);
+            
+            return {
+                filepath,
+                basename,
+                name,
+                filesize,
+                filesizeHuman,
+                dbCount
+            }
+        })
+    )
 
-$on('click', '#user-data-path', (e) => {
-    e.preventDefault()
-    ipcRenderer.send('shell.showItemInFolder', app.getPath('userData') + '/.')
-})
+    let tpl_html = await ejs_template('json-stats/table', { dbData: dbData })
 
+    $$('#db-table').html(tpl_html)
 
-$on('click', '#clear-upload', async () => {
-    await clearUploadDb()
-})
-
-function populateJsonDbData() {
-    $$('#json-files').html('')
-    const dbFiles = getJsonDbFiles()
-
-    for (let i = 0; i < dbFiles.length; i++) {
-        let fileSize = getFilesizeInBytes(dbFiles[i]);
-        let badgeClass = fileSize > 0 ? 'badge-success' : 'badge-light'
-        $$('#json-files').append(`<li><span style="width: 70px; text-align: right;" class="badge ${badgeClass}">${bytes(fileSize)}</span> ${path.basename(dbFiles[i])}</li>`)
+    if (confirm) {
+        Helper.pnotify(null,  `Database table is refreshed.`)
     }
-    $$('#json-files').append(`<li style="font-size: 0.7em">Rand seed: ${Math.random()}</li>`)
 }
 
-async function clearUploadDb() {
-    let willDelete = await swal({
-        title: "Are you sure?",
-        text: "This will delete all the content in the upload transfer list!",
-        buttons: true,
-        dangerMode: true,
+function coundDbItems(db) {
+    return new Promise((resolve, reject) => {
+        db().count({}, function(err, count) {
+            if (err) {
+                resolve('?')
+            }
+
+            resolve(count)
+        })
     })
-
-    if (willDelete) {
-        await swal("The application will restart after clearing the upload list.")
-    } else {
-        return;
-    }
-
-    fs.writeFile(getDbFilePath('uploads'), '', err => {
-        if (err) throw err;
-
-        app.relaunch()
-        app.exit()
-    })
-}
-
-function getDbFilePath(dbFile) {
-    let xnat_server = settings.get('xnat_server');
-    let username = auth.get_current_user();
-    let db_sha1 = sha1(xnat_server + username)
-
-    const appDataDir = app.getPath('userData')
-    return path.join(appDataDir, `db.${dbFile}.${db_sha1}.json`)
-}
-
-function getJsonDbFiles() {
-    let xnat_server = settings.get('xnat_server');
-    let username = auth.get_current_user();
-
-    let db_sha1 = sha1(xnat_server + username)
-
-    const appDataDir = app.getPath('userData')
-    const dbPath = path.join(appDataDir, `db.*.${db_sha1}.json`)
-    //const dbPath = path.join(appDataDir, `db.*.json`)
-
-    return glob.sync(dbPath)
 }
 
 function getFilesizeInBytes(filename) {
@@ -93,3 +65,88 @@ function getFilesizeInBytes(filename) {
     let fileSizeInBytes = stats.size;
     return fileSizeInBytes;
 }
+
+function clearDatabase(db) {
+    let dbName = path.basename(db().persistence.filename).split('.')[1]
+
+    db().remove({}, { multi: true }, function (err, numRemoved) {
+        if (err) throw err
+
+        let recordsLabel = numRemoved === 1 ? 'record' : 'records'
+        Helper.pnotify(null,  `${dbName} cleared.  ${numRemoved} ${recordsLabel} removed.`)
+
+        db().persistence.compactDatafile()
+        db().once('compaction.done', function() {
+            populateJsonDbData()
+        })
+    })
+}
+
+// ******************************************************************************
+// ******************************************************************************
+
+$on('page:load', dom_context, async function(e){
+    $$('#user-data-path').text(app.getPath('userData'))
+    populateJsonDbData()
+})
+
+$on('click', '[data-js-table-reload]', async function(e){
+    populateJsonDbData(true)
+})
+
+$on('click', '#user-data-path', (e) => {
+    e.preventDefault()
+    ipcRenderer.send('shell.showItemInFolder', app.getPath('userData') + '/.')
+})
+
+$on('click', '[data-js-db-filepath]', function() {
+    let dbPath = $(this).data('js-db-filepath')
+    ipcRenderer.send('shell.showItemInFolder', dbPath)
+})
+
+$on('click', '[data-js-empty-db]', async function() {
+    let dbName = $(this).data('js-empty-db')
+
+    const proceed = await swal({
+        title: `Empty (${dbName}) database?`,
+        text: `This action cannot be undone.`,
+        icon: "error",
+        buttons: ['Cancel', 'Empty Database'],
+        dangerMode: true
+    })
+
+    if (proceed) {
+        switch (dbName) {
+            case "uploads":
+                clearDatabase(db_uploads)
+                break
+            case "uploads_archive":
+                clearDatabase(db_uploads_archive)
+                break
+            case "downloads":
+                clearDatabase(db_downloads)
+                break
+            case "downloads_archive":
+                clearDatabase(db_downloads_archive)
+                break
+        }
+    }
+})
+
+$on('click', '[data-js-empty-dbs]', async function() {
+    const proceed = await swal({
+        title: `Empty All Databases?`,
+        text: `This action cannot be undone.`,
+        icon: "error",
+        buttons: ['Cancel', 'Empty Databases'],
+        dangerMode: true
+    })
+
+    if (proceed) {
+        let databases = [db_uploads, db_uploads_archive, db_downloads, db_downloads_archive]
+
+        databases.forEach((db) => {
+            clearDatabase(db)
+        })
+    }
+})

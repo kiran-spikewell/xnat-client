@@ -207,6 +207,18 @@
                             <button class="btn btn-blue" type="button" data-js="show-user-data-folder">Open User Data Directory</button>
                         </div>
                     </div>
+
+                    <div class="row" if-logged-in>
+                        <div class="col-12">
+                            <div class="border-top mt-5 pt-4">
+                                <div class="alert alert-primary" role="alert">
+                                    <b>User account debug</b>: <span data-var="username"></span>@<span data-var="server"></span>
+                                </div>
+
+                                <p><a href="json-stats.html" class="btn btn-blue">Curent User's Databases</a></p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
             </div>

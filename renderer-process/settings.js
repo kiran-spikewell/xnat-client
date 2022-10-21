@@ -24,7 +24,7 @@ const { $$, $on } = require('./../services/selector_factory')(dom_context)
 //const blockUI = require('blockui-npm');
 let allow_insecure_ssl;
 
-$(document).on('page:load', '#settings-section', function(e){
+$on('page:load', dom_context, async function(e){
     if (auth.get_current_user()) {
         $('.nav-tabs a.hidden').removeClass('hidden');
         display_user_preferences()
@@ -44,7 +44,24 @@ $(document).on('page:load', '#settings-section', function(e){
     if (settings.get('send_crash_reports', false) === true) {
         $('#send-crash-reports').val('1')
     }
+
+    template_variables()
 });
+
+function template_variables() {
+    let loginData = auth.current_login_data()
+
+    let data = {
+        username: loginData.username,
+        server: loginData.server
+    }
+
+    $$('[data-var]').each(function() {
+        let varname = $(this).data('var')
+        console.log({varname: data[varname]});
+        $(this).text(data[varname])
+    })
+}
 
 function display_user_preferences() {
     display_missing_anon_script_warnings_settings();
