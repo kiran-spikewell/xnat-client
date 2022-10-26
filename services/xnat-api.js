@@ -9,6 +9,7 @@ class XNATAPI {
     constructor(xnat_server, user_auth) {
         this.xnat_server = xnat_server
         this.user_auth = user_auth
+        this.heartbeat_interval = undefined
     }
 
     axios_config() {
@@ -383,7 +384,27 @@ class XNATAPI {
         });
     }
 
+    heartbeat() {
+        this.axios_get('/xapi/siteConfig/buildInfo');
+    }
 
+    heartbeat_start() {
+        if (this.heartbeat_interval) {
+            // already running, skip
+            return;
+        }
+        this.heartbeat_interval = window.setInterval(
+            this.heartbeat.bind(this), 
+            60000
+        );
+    }
+
+    heartbeat_stop() {
+        if (this.heartbeat_interval) {
+            clearInterval(this.heartbeat_interval);
+            this.heartbeat_interval = undefined
+        }
+    }
 
     //******** STATIC ********* */
 

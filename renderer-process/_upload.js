@@ -495,6 +495,8 @@ async function copy_and_anonymize(transfer, series_id, filePaths, contexts, vari
         user_auth = auth.get_user_auth(),
         table_row = transfer.table_rows.find(tbl_row => tbl_row.series_id == series_id);
 
+    const xnat_api = new XNATAPI(xnat_server, user_auth);
+
     let dicom_temp_folder_path = get_temp_upload_path();
     let new_dirname = 'dir_' + Date.now(); // eg. dir_1522274921704
     let new_dirpath = path.join(dicom_temp_folder_path, new_dirname);
@@ -651,9 +653,11 @@ async function copy_and_anonymize(transfer, series_id, filePaths, contexts, vari
         console_red('store_checksums DONE');
     }
 
+    xnat_api.heartbeat_start();
     axios(request_settings)
     .then(async (res) => {
         console_red('zip upload done - res')
+        xnat_api.heartbeat_stop();
 
         await store_checksums(transfer.id, series_id, upload_id)
 
@@ -743,11 +747,13 @@ async function copy_and_anonymize(transfer, series_id, filePaths, contexts, vari
 
             console_log({commit_data});
             
+            xnat_api.heartbeat_start();
             axios.post(commit_url, commit_data, commit_request_settings)
             .then(commit_res => {
                 console_red('-------- XCOMMIT_SUCCESS ----------')
                 console_log('-------- XCOMMIT_SUCCESS ----------')
                 console_log(commit_res);
+                xnat_api.heartbeat_stop();
 
                 if (commit_res.data.indexOf(reference_str) >= 0) {
                     console_log(`+++ SESSION PREARCHIVED +++`);
@@ -788,6 +794,7 @@ async function copy_and_anonymize(transfer, series_id, filePaths, contexts, vari
             .catch(err => {
                 console_log('-------- XCOMMIT_ERR ----------')
                 console_log(err.response.data);
+                xnat_api.heartbeat_stop();
 
                 if (err.response.status != 301) {
                     electron_log.error('commit_error', commit_url, JSON.stringify(err.response))
@@ -853,6 +860,7 @@ async function copy_and_anonymize(transfer, series_id, filePaths, contexts, vari
         respawn_transfer(transfer.id, series_id, true)
     })
     .catch(err => {
+        xnat_api.heartbeat_stop();
         handleUploadError(transfer, series_id, err)
     });
 
@@ -1140,6 +1148,7 @@ async function upload_zip(zip_path, transfer, series_id, csrfToken) {
     let xnat_server = transfer.xnat_server, 
         user_auth = auth.get_user_auth(),
         table_row = transfer.table_rows.find(tbl_row => tbl_row.series_id == series_id);
+    const xnat_api = new XNATAPI(xnat_server, user_auth);
 
         
     let cancelCurrentUpload;
@@ -1212,8 +1221,10 @@ async function upload_zip(zip_path, transfer, series_id, csrfToken) {
         if (err) throw err;
 
         request_settings.data = zip_content;
+        xnat_api.heartbeat_start();
         axios(request_settings)
         .then(async res => {
+            xnat_api.heartbeat_stop();
             fs.unlink(zip_path, (err) => {
                 if (err) throw err;
                 //console_log(`-- ZIP file "${zip_path}" was deleted.`);
@@ -1292,8 +1303,10 @@ async function upload_zip(zip_path, transfer, series_id, csrfToken) {
     
                 console_log({commit_data});
                 
+                xnat_api.heartbeat_start();
                 axios.post(commit_url, commit_data, commit_request_settings)
                 .then(commit_res => {
+                    xnat_api.heartbeat_stop();
                     console_log('-------- XCOMMIT_SUCCESS ----------')
                     console_log(commit_res);
     
@@ -1332,6 +1345,7 @@ async function upload_zip(zip_path, transfer, series_id, csrfToken) {
                     }
                 })
                 .catch(err => {
+                    xnat_api.heartbeat_stop();
                     console_log('-------- XCOMMIT_ERR ----------')
                     console_log(err.response.data);
     
@@ -1382,6 +1396,7 @@ async function upload_zip(zip_path, transfer, series_id, csrfToken) {
             respawn_transfer(transfer.id, series_id, true)
         })
         .catch(err => {
+            xnat_api.heartbeat_stop();
             handleUploadError(transfer, series_id, err)
         });
     
