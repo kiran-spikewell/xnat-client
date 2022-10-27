@@ -38,22 +38,26 @@ electron.crashReporter.start({
 });
 */
 
-if (isSecondInstance()){
-  app.quit()
-} else {
-  runMigrations()
-  if (is_usr_local_lib_writable()) {
-    fix_java_path()
-    initialize()
-  } else {
-    initialize_usr_local_lib_app()
-  }
-}
-
 global.user_auth = {
   username: null,
   password: null
 };
+
+initApp()
+
+async function initApp() {
+  if (isSecondInstance()){
+    app.quit()
+  } else {
+    await runMigrations()
+    if (is_usr_local_lib_writable()) {
+      fix_java_path()
+      initialize()
+    } else {
+      initialize_usr_local_lib_app()
+    }
+  }
+}
 
 
 function initialize_usr_local_lib_app() {
@@ -733,13 +737,3 @@ ipcMain.on('print_pdf', (e, html, destination, pdf_settings, filename_base, show
   
 })
 
-
-
-exports.log = log
-
-
-
-global.user_auth = {
-  username: null,
-  password: null
-};

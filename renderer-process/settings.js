@@ -5,6 +5,7 @@ const ElectronStore = require('electron-store');
 const settings = new ElectronStore();
 const ipcRenderer = require('electron').ipcRenderer
 const swal = require('sweetalert');
+const fs = require('fs');
 
 const remote = require('electron').remote;
 
@@ -523,22 +524,21 @@ $(document).on('change', '#file_temp_folder_alt', function(e) {
 
 });
 
-$(document).on('click', '#reset_temp_folder_alt', function() {
+$(document).on('click', '#reset_temp_folder_alt', async function() {
     let default_temp_path = path.resolve(tempDir, '_xdc_temp');
-    swal({
+    const proceed = await swal({
         title: `Are you sure?`,
         text: `Reset temporary upload path to "${default_temp_path}"?`,
         icon: "warning",
         buttons: ['Cancel', 'Continue'],
         dangerMode: true
     })
-    .then((proceed) => {
-        if (proceed) {
-            user_settings.unset('temp_folder_alternative');
-            $('#temp_folder_alt').val(default_temp_path);
-            Helper.pnotify('Success!', `Temporary folder reset to system default!`, 'success', 2000);
-        }
-    });
+
+    if (proceed) {
+        user_settings.unset('temp_folder_alternative')
+        $('#temp_folder_alt').val(default_temp_path)
+        Helper.pnotify('Success!', `Temporary folder reset to system default!`, 'success', 2000)
+    }
 })
 
 
@@ -617,6 +617,28 @@ $on('click', '#save-pdf-destination', function(e) {
 
 $on('click', '[data-js="show-user-data-folder"]', function() {
     ipcRenderer.send('shell.showItemInFolder', app.getPath('userData') + path.sep + '.')
+})
+
+$on('click', '[data-js="clear-app-cache"]', async function() {
+    const proceed = await swal({
+        title: 'Clear Application Cache?',
+        text: 'If you clear the application cache, all transfer data will be lost and the application will relaunch!',
+        icon: "warning",
+        buttons: ['Cancel', 'Yes'],
+        dangerMode: true
+    })
+    
+    if (proceed) {
+        const appDataDir = app.getPath('userData')
+        const clear_cache_flag_file = path.join(appDataDir, constants.CLEAR_APPLICATION_CACHE_FILENAME)
+
+        if (!fs.existsSync(clear_cache_flag_file)) {
+            fs.writeFileSync(clear_cache_flag_file, '')
+        }
+        
+        app.relaunch()
+        app.exit()
+    }
 })
 
 function update_pdf_settings_info() {

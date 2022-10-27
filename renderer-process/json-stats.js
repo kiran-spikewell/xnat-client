@@ -91,6 +91,7 @@ $on('page:load', dom_context, async function(e){
 })
 
 $on('click', '[data-js-table-reload]', async function(e){
+    e.preventDefault()
     populateJsonDbData(true)
 })
 
@@ -99,12 +100,14 @@ $on('click', '#user-data-path', (e) => {
     ipcRenderer.send('shell.showItemInFolder', app.getPath('userData') + '/.')
 })
 
-$on('click', '[data-js-db-filepath]', function() {
+$on('click', '[data-js-db-filepath]', function(e) {
+    e.preventDefault()
     let dbPath = $(this).data('js-db-filepath')
     ipcRenderer.send('shell.showItemInFolder', dbPath)
 })
 
-$on('click', '[data-js-empty-db]', async function() {
+$on('click', '[data-js-empty-db]', async function(e) {
+    e.preventDefault()
     let dbName = $(this).data('js-empty-db')
 
     const proceed = await swal({
@@ -133,7 +136,9 @@ $on('click', '[data-js-empty-db]', async function() {
     }
 })
 
-$on('click', '[data-js-empty-dbs]', async function() {
+$on('click', '[data-js-empty-dbs]', async function(e) {
+    e.preventDefault()
+    
     const proceed = await swal({
         title: `Empty All Databases?`,
         text: `This action cannot be undone.`,
