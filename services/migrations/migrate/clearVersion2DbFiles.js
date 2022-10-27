@@ -18,7 +18,7 @@ module.exports = async () => {
         }
         console.log('IS clear-version2-db-files')
 
-        return true
+        return dbFiles.length ? true : false
     } else {
         console.log('NOT clear-version2-db-files')
         return false
