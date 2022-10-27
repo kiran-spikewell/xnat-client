@@ -131,6 +131,13 @@ function _init_upload_progress_table() {
                 escape: false,
                 formatter: function(value, row, index, field) {
                     let content;
+
+                    let btn_delete = `<button type="button"
+                                        class="btn btn-icon btn-gray float-right" 
+                                        title="Remove selected upload"
+                                        data-js-remove-upload="1"
+                                        data-experiment_label="${row.experiment_label}"
+                                        data-id="${row.id}"><i class="fas fa-minus-circle"></i></button>`
                     switch(row.status) {
                         case 'queued':
                             content = `
@@ -152,25 +159,25 @@ function _init_upload_progress_table() {
                             
                         case 'xnat_error':
                             content = `
-                            <button class="btn btn-block btn-danger" 
+                            <button class="btn btn-danger" 
                                 data-toggle="modal" 
                                 data-target="#error-log--upload"
                                 data-id="${row.id}"
                                 ><i class="fas fa-exclamation-triangle"></i> Log</button>
-                            `;
+                            ` + btn_delete;
                             break;
                         
                         default: // float
                             let display_transfer_rate = (typeof row.status !== 'string') ? true : false;
                             content = `
-                                <button class="btn btn-block btn-info" 
+                                <button class="btn btn-info" 
                                     data-toggle="modal" 
                                     data-target="#upload-details"
                                     data-id="${row.id}"
                                     data-session_label="${row.session_label}"
                                     data-show_transfer_rate="${display_transfer_rate}"
                                     ><i class="fas fa-upload"></i> Details</button>
-                            `;
+                            ` + btn_delete;
                     }
 
                     return content;
@@ -575,6 +582,30 @@ $(document).on('click', csv_export_buttons.join(','), function(e) {
         }
     });
 })
+
+$on('click', 'button[data-js-remove-upload]', async function() {
+    const experiment_label = $(this).data('experiment_label')
+    const proceed = await swal({
+        title: `Are you sure you want to delete this upload (${experiment_label})?`,
+        text: `This action cannot be undone.`,
+        icon: "error",
+        buttons: ['Cancel', 'Delete Upload'],
+        dangerMode: true
+    })
+    
+    if (proceed) {
+        let delete_upload_id = $(this).data('id')
+
+        db_uploads().remove({ id: delete_upload_id }, {}, function (err, numRemoved) {
+            if (err) throw err
+
+            Helper.pnotify(null,  `Uploads Removed: ${numRemoved}`)
+            _init_upload_progress_table();
+        });
+
+    }
+})
+
 
 $on('click', '#upload_session_to_json', function() {
     let id = $(this).closest('.modal-content').attr('data-id');

@@ -37,6 +37,7 @@ const { file_checksum, uuidv4, isEmptyObject, promiseSerial, arrayUnique, isDevE
 const { MizerError } = require('../services/errors');
 
 const CONSTANTS = require('../services/constants');
+const rimraf = require('rimraf');
 
 
 let summary_log = {};
@@ -480,8 +481,7 @@ async function doUpload(transfer, series_id) {
 }
 
 function get_temp_upload_path() {
-    return user_settings.get('temp_folder_alternative') ?
-        user_settings.get('temp_folder_alternative') : path.join(tempDir, '_xdc_temp');
+    return user_settings.getDefault('temp_folder_alternative', path.join(tempDir, '_xdc_temp'))
 }
 
 let upload_counter = 0;
@@ -658,6 +658,8 @@ async function copy_and_anonymize(transfer, series_id, filePaths, contexts, vari
     .then(async (res) => {
         console_red('zip upload done - res')
         xnat_api.heartbeat_stop();
+
+        await new Promise(resolve => rimraf(new_dirpath, { disableGlob: true }, resolve))
 
         await store_checksums(transfer.id, series_id, upload_id)
 
@@ -1224,10 +1226,15 @@ async function upload_zip(zip_path, transfer, series_id, csrfToken) {
         xnat_api.heartbeat_start();
         axios(request_settings)
         .then(async res => {
+            const zip_path_dir = path.dirname(zip_path)
             xnat_api.heartbeat_stop();
             fs.unlink(zip_path, (err) => {
                 if (err) throw err;
                 //console_log(`-- ZIP file "${zip_path}" was deleted.`);
+                fs.rmdir(zip_path_dir, (err) => {
+                    if (err) throw err;
+                    //console_log(`-- ZIP dir "${zip_path_dir}" was deleted.`);
+                })
             });
 
             remove_cancel_token(transfer.id, series_id)

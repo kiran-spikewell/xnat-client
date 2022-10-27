@@ -219,9 +219,26 @@
 
                 <div class="tab-pane fade" id="nav-debug" role="tabpanel" aria-labelledby="nav-debug-tab">
                     <div class="row">
-                        <div class="col-12">
+                        <div class="col-6">
                             <p>Open application's user data directory.</p>
-                            <button class="btn btn-blue" type="button" data-js="show-user-data-folder">Open User Data Directory</button>
+                            <button class="btn btn-blue" type="button" data-js="show-user-data-folder"><i class="far fa-folder-open"></i> Open User Data Directory</button>
+                        </div>
+
+                        <div class="col-6">
+                            <p>Clear Application Cache Directory.</p>
+                            <button class="btn btn-blue" type="button" data-js="clear-app-cache"><i class="fas fa-minus-circle"></i> Clear Application Cache</button>
+                        </div>
+                    </div>
+
+                    <div class="row" if-logged-in>
+                        <div class="col-12">
+                            <div class="border-top mt-5 pt-4">
+                                <div class="alert alert-primary" role="alert">
+                                    <b>User account debug</b>: <span data-var="username"></span>@<span data-var="server"></span>
+                                </div>
+
+                                <p><a href="json-stats.html" class="btn btn-blue">Curent User's Databases</a></p>
+                            </div>
                         </div>
                     </div>
                 </div>

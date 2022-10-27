@@ -5,6 +5,7 @@ const ElectronStore = require('electron-store');
 const settings = new ElectronStore();
 const ipcRenderer = require('electron').ipcRenderer
 const swal = require('sweetalert');
+const fs = require('fs');
 
 const remote = require('electron').remote;
 
@@ -24,7 +25,7 @@ const { $$, $on } = require('./../services/selector_factory')(dom_context)
 //const blockUI = require('blockui-npm');
 let allow_insecure_ssl;
 
-$(document).on('page:load', '#settings-section', function(e){
+$on('page:load', dom_context, async function(e){
     if (auth.get_current_user()) {
         $('.nav-tabs a.hidden').removeClass('hidden');
         display_user_preferences()
@@ -44,7 +45,24 @@ $(document).on('page:load', '#settings-section', function(e){
     if (settings.get('send_crash_reports', false) === true) {
         $('#send-crash-reports').val('1')
     }
+
+    template_variables()
 });
+
+function template_variables() {
+    let loginData = auth.current_login_data()
+
+    let data = {
+        username: loginData.username,
+        server: loginData.server
+    }
+
+    $$('[data-var]').each(function() {
+        let varname = $(this).data('var')
+        console.log({varname: data[varname]});
+        $(this).text(data[varname])
+    })
+}
 
 function display_user_preferences() {
     display_missing_anon_script_warnings_settings();
@@ -126,8 +144,7 @@ function show_default_pet_tracers() {
 }
 
 function show_default_temp_storage() {
-    let dicom_temp_folder_path = user_settings.get('temp_folder_alternative') ? 
-        user_settings.get('temp_folder_alternative') : path.resolve(tempDir, '_xdc_temp');
+    let dicom_temp_folder_path = user_settings.getDefault('temp_folder_alternative', path.resolve(tempDir, '_xdc_temp'))
 
     $('#temp_folder_alt').val(dicom_temp_folder_path);
 }
@@ -539,22 +556,21 @@ $(document).on('change', '#file_temp_folder_alt', function(e) {
 
 });
 
-$(document).on('click', '#reset_temp_folder_alt', function() {
+$(document).on('click', '#reset_temp_folder_alt', async function() {
     let default_temp_path = path.resolve(tempDir, '_xdc_temp');
-    swal({
+    const proceed = await swal({
         title: `Are you sure?`,
         text: `Reset temporary upload path to "${default_temp_path}"?`,
         icon: "warning",
         buttons: ['Cancel', 'Continue'],
         dangerMode: true
     })
-    .then((proceed) => {
-        if (proceed) {
-            user_settings.unset('temp_folder_alternative');
-            $('#temp_folder_alt').val(default_temp_path);
-            Helper.pnotify('Success!', `Temporary folder reset to system default!`, 'success', 2000);
-        }
-    });
+
+    if (proceed) {
+        user_settings.unset('temp_folder_alternative')
+        $('#temp_folder_alt').val(default_temp_path)
+        Helper.pnotify('Success!', `Temporary folder reset to system default!`, 'success', 2000)
+    }
 })
 
 
@@ -633,6 +649,28 @@ $on('click', '#save-pdf-destination', function(e) {
 
 $on('click', '[data-js="show-user-data-folder"]', function() {
     ipcRenderer.send('shell.showItemInFolder', app.getPath('userData') + path.sep + '.')
+})
+
+$on('click', '[data-js="clear-app-cache"]', async function() {
+    const proceed = await swal({
+        title: 'Clear Application Cache?',
+        text: 'If you clear the application cache, all transfer data will be lost and the application will relaunch!',
+        icon: "warning",
+        buttons: ['Cancel', 'Yes'],
+        dangerMode: true
+    })
+    
+    if (proceed) {
+        const appDataDir = app.getPath('userData')
+        const clear_cache_flag_file = path.join(appDataDir, constants.CLEAR_APPLICATION_CACHE_FILENAME)
+
+        if (!fs.existsSync(clear_cache_flag_file)) {
+            fs.writeFileSync(clear_cache_flag_file, '')
+        }
+        
+        app.relaunch()
+        app.exit()
+    }
 })
 
 function update_pdf_settings_info() {
