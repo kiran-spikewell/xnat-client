@@ -143,8 +143,7 @@ function show_default_pet_tracers() {
 }
 
 function show_default_temp_storage() {
-    let dicom_temp_folder_path = user_settings.get('temp_folder_alternative') ? 
-        user_settings.get('temp_folder_alternative') : path.resolve(tempDir, '_xdc_temp');
+    let dicom_temp_folder_path = user_settings.getDefault('temp_folder_alternative', path.resolve(tempDir, '_xdc_temp'))
 
     $('#temp_folder_alt').val(dicom_temp_folder_path);
 }
