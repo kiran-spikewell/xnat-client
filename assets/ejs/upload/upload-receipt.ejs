@@ -6,6 +6,7 @@
 
         <ol>
             <li><b>Start Upload: </b> <%= computed.start_upload %></li>
+            <li><b>Upload Finished: </b> <%= computed.finished_upload %></li>
             <li><b>Study Anonymization: </b> 
                 <ul>
                     <% for(var key in anon_variables) { %>
@@ -15,15 +16,15 @@
             </li>
 
             <% for(var single_series in series) { %>
-                <li><b>Scan Series:</b> <%= series[single_series][0].seriesInstanceUid %> 
+                <li><b>Scan Series:</b> <%= series[single_series].seriesInstanceUid %> 
                     <ul>
                         <li><b>Files:</b>
                             <ul>
-                                <% for(var index in series[single_series]) { %>
+                                <% for(var i = 0; i < series[single_series].filenames.length; i++) { %>
                                     <li>
-                                        <%= series[single_series][index].filename %>
+                                        <%= series[single_series].filenames[i] %>
                                         <ul>
-                                            <li>Checksum (local): <%= series[single_series][index].anon_checksum %></li>
+                                            <li>Checksum (local): <%= series[single_series].anon_checksums[i] %></li>
                                         </ul>
                                     </li>
                                 <% } %>

@@ -9,12 +9,13 @@ class XNATAPI {
     constructor(xnat_server, user_auth) {
         this.xnat_server = xnat_server
         this.user_auth = user_auth
+        this.heartbeat_interval = undefined
     }
 
     axios_config() {
         let httpsOptions = { keepAlive: true };
 
-        const allow_insecure_ssl = settings.has('allow_insecure_ssl') ? settings.get('allow_insecure_ssl') : false;
+        const allow_insecure_ssl = settings.get('allow_insecure_ssl', false);
         
         // TODO resolve circular dependency and replace allow_insecure_ssl with method auth.allow_insecure_ssl()
         httpsOptions.rejectUnauthorized = !allow_insecure_ssl
@@ -32,6 +33,10 @@ class XNATAPI {
 
     axios_put(url_path) {
         return axios.put(this.xnat_server + url_path, this.axios_config())
+    }
+
+    axios_delete(url_path) {
+        return axios.delete(this.xnat_server + url_path, this.axios_config())
     }
 
     axios_post(url_path, params) {
@@ -355,6 +360,10 @@ class XNATAPI {
         return res.data ? res.data : null
     }
 
+    async flush_user_cache() {
+        const res = await this.axios_delete(`/xapi/access/cache/flush`)
+        return res.data ? res.data : null
+    }
 
 
 
@@ -375,7 +384,27 @@ class XNATAPI {
         });
     }
 
+    heartbeat() {
+        this.axios_get('/xapi/siteConfig/buildInfo');
+    }
 
+    heartbeat_start() {
+        if (this.heartbeat_interval) {
+            // already running, skip
+            return;
+        }
+        this.heartbeat_interval = window.setInterval(
+            this.heartbeat.bind(this), 
+            60000
+        );
+    }
+
+    heartbeat_stop() {
+        if (this.heartbeat_interval) {
+            clearInterval(this.heartbeat_interval);
+            this.heartbeat_interval = undefined
+        }
+    }
 
     //******** STATIC ********* */
 

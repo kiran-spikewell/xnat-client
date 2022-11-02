@@ -9,6 +9,11 @@
 		cursor: not-allowed;
 	}
 }
+.btn-icon {
+	padding: 0.2rem 0.2rem;
+    min-height: 33px;
+    min-width: 33px;
+}
 .btn-known-user {
 	color: $dark-blue;
 	font-weight: 700;

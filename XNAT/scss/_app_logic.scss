@@ -1,0 +1,13 @@
+[if-logged-in] {
+    display: none;
+}
+
+html[is-logged-in] [if-logged-in] {
+    display: block;
+}
+
+// todo: should show only when current app version is dev or alpha channel
+[data-app-testing] {
+
+}
+

@@ -30,11 +30,15 @@ let Helper = {
     },
     UI: {
         userMenuHide: () => {
+            $('html').removeAttr('is-logged-in')
+
             $('.hidden-by-default').each(function(){
                 $(this).addClass('hidden');
             })
         },
         userMenuShow: () =>  {
+            $('html').attr('is-logged-in', true)
+
             let server_name = settings.get('xnat_server') ? settings.get('xnat_server').split('//')[1] : '';
             $("#menu--server").html(server_name);
             $("#menu--username").html(auth.get_current_user());

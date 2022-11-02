@@ -1,4 +1,4 @@
-const ipc = require('electron').ipcRenderer;
+const ipcRenderer = require('electron').ipcRenderer;
 const shell = require('electron').shell;
 
 const fs = require('fs');
@@ -294,8 +294,8 @@ async function attempt_download(file_path, destination) {
             
             $('.modal').modal('hide');
 
-            ipc.send('start_download');
-            ipc.send('redirect', 'progress.html');
+            ipcRenderer.send('start_download');
+            ipcRenderer.send('redirect', 'progress.html');
 
         } catch(parse_error) {
             throw new Error(`${parsing_error_message} <br><small>[Error: ${parse_error.message}]</small>`);
@@ -311,7 +311,7 @@ function _init_variables() {
     default_local_storage = settings.get('default_local_storage')
 }
 
-ipc.on('launch_download_modal',function(e, data){
+ipcRenderer.on('launch_download_modal',function(e, data){
     var $dm = $('#download_modal');
 
     var show_modal = function(){

@@ -13,10 +13,16 @@ const remote = require('electron').remote;
 
 const ipcEventHandlers = require('../services/ipc-event-handlers')
 
-const { isReallyWritable } = require('../services/app_utils');
+const { isReallyWritable, isDevEnv, currentVersionChannel } = require('../services/app_utils');
 
 const user_settings = require('../services/user_settings');
 
+const XNATAPI = require('../services/xnat-api')
+
+const test_environment = isDevEnv() || currentVersionChannel() === 'alpha';
+
+/*
+ * TOOLS-637 Removing crashpad reporting until we can verify no PHI at risk
 const appMetaData = require('../package.json');
 electron.crashReporter.start({
     companyName: appMetaData.author,
@@ -25,8 +31,7 @@ electron.crashReporter.start({
     submitURL: appMetaData.extraMetadata.submitUrl,
     uploadToServer: settings.get('send_crash_reports', false)
 });
-
-
+*/
 
 try {
     let mizer = remote.require('./mizer');
@@ -367,8 +372,29 @@ function ipc_log(e, ...args){
     console_log(...args);
 };
 
+async function flush_user_cache () {
+    let xnat_server = settings.get('xnat_server');
+    let user_auth = settings.get('user_auth');
+    const xnat_api = new XNATAPI(xnat_server, user_auth)
+
+    try {
+        await xnat_api.flush_user_cache()
+        Helper.pnotify(null, 'XNAT User Access Cache was successfully flushed.');
+        loadPage('home.html')
+    } catch (axios_error) {
+        let response_status = axios_error.response && axios_error.response.status ? axios_error.response.status : '-'
+        ipcRenderer.send('custom_error', `Flush XNAT User Access Cache Request Error`, `Message: ${axios_error.message}.\nError status: ${response_status}.`)
+    }
+}
 
 // ===============
+// hide UI elements that are used for testing purposes
+$(document).on('page:load', function(e){
+    if (!test_environment) {
+        $('[data-app-testing]').hide()
+    }
+});
+
 $(document).on('click', 'a', function(e){
     const href = $(this).attr('href');
     if (href.indexOf('http') !== 0) {
@@ -381,6 +407,7 @@ $(document).on('click', 'a', function(e){
         shell.openExternal(href)
     }
 })
+
 
 $(document).on('click', 'a.logo-header', function(e){
     e.preventDefault();
@@ -397,6 +424,10 @@ $(document).on('click', '#trigger_download', function(){
 
 $(document).on('click', '#menu--logout', function(){
     logout();
+})
+
+$(document).on('click', '#flush_user_cache', async function(){
+    await flush_user_cache()
 })
 
 $(document).on('click', '[data-href]', function() {

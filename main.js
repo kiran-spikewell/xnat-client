@@ -26,6 +26,9 @@ electron_log.info('App starting...');
 
 app.commandLine.appendSwitch('remote-debugging-port', '9222')
 
+/*
+ * TOOLS-637 Removing crashpad reporting until we can verify no PHI at risk
+const appMetaData = require('./package.json');
 electron.crashReporter.start({
     companyName: appMetaData.author,
     productName: appMetaData.name,
@@ -33,24 +36,28 @@ electron.crashReporter.start({
     submitURL: appMetaData.extraMetadata.submitUrl,
     uploadToServer: settings.get('send_crash_reports', false)
 });
-
-
-if (isSecondInstance()){
-  app.quit()
-} else {
-  runMigrations()
-  if (is_usr_local_lib_writable()) {
-    fix_java_path()
-    initialize()
-  } else {
-    initialize_usr_local_lib_app()
-  }
-}
+*/
 
 global.user_auth = {
   username: null,
   password: null
 };
+
+initApp()
+
+async function initApp() {
+  if (isSecondInstance()){
+    app.quit()
+  } else {
+    await runMigrations()
+    if (is_usr_local_lib_writable()) {
+      fix_java_path()
+      initialize()
+    } else {
+      initialize_usr_local_lib_app()
+    }
+  }
+}
 
 
 function initialize_usr_local_lib_app() {
@@ -693,14 +700,13 @@ ipcMain.on('clearVersion2DbFiles', (e, item) => {
 
 
 ipcMain.on('print_pdf', (e, html, destination, pdf_settings, filename_base, show_in_folder = true) => {
-  const file_name = `Upload-Receipt--${filename_base}-${Date.now()}` 
-  const pdf_filepath = path.join(destination, `${file_name}.pdf`)
-  const html_filepath = path.join(destination, `${file_name}.html`)
+  const pdf_filepath = path.join(destination, `${filename_base}.pdf`)
+  const html_filepath = path.join(destination, `${filename_base}.html`)
 
   try {
     fs.writeFileSync(html_filepath, html, 'utf8')
   } catch(err) {
-    showErrorBox('Greska', err)
+    showErrorBox('Error', err)
     return
   }
 
@@ -730,3 +736,4 @@ ipcMain.on('print_pdf', (e, html, destination, pdf_settings, filename_base, show
   });
   
 })
+

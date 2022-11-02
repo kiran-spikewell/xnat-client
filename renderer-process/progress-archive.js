@@ -490,7 +490,7 @@ $(document).on('page:load', '#progress-archive-section', function(e){
     _init_variables();
 });
 
-$(document).on('show.bs.modal', '#download-archive-details', function(e) {
+$on('show.bs.modal', '#download-archive-details', function(e) {
     var id = $(e.relatedTarget).data('id');
     var file = $(e.relatedTarget).data('file');
 
@@ -500,7 +500,7 @@ $(document).on('show.bs.modal', '#download-archive-details', function(e) {
 });
 
 
-$(document).on('show.bs.modal', '#error-log--download-archive', function(e) {
+$on('show.bs.modal', '#error-log--download-archive', function(e) {
     var id = parseInt($(e.relatedTarget).data('id'));
     let $log_text = $(e.currentTarget).find('.log-text');
 
@@ -510,7 +510,7 @@ $(document).on('show.bs.modal', '#error-log--download-archive', function(e) {
 });
 
 
-$(document).on('show.bs.modal', '#upload-archive-details', function(e) {
+$on('show.bs.modal', '#upload-archive-details', function(e) {
     var id = $(e.relatedTarget).data('id');
 
     var session_label = $(e.relatedTarget).data('session_label');
@@ -521,11 +521,16 @@ $(document).on('show.bs.modal', '#upload-archive-details', function(e) {
 });
 
 // fix modal from modal body overflow problem
-$(document).on('shown.bs.modal', '#upload-archive-details', function(e) {
+$on('shown.bs.modal', '#upload-archive-details', function(e) {
     $('body').addClass('modal-open')
 });
 
-$(document).on('show.bs.modal', '#upload-archive-success-log', function(e) {
+$on('click', '[data-js-view-receipt-link]', function(e) {
+    const pdf_receipt_path = $(this).data('pdf_receipt_path')
+    ipcRenderer.send('shell.showItemInFolder', pdf_receipt_path)
+})
+
+$on('show.bs.modal', '#upload-archive-success-log', function(e) {
     var transfer_id = $(e.relatedTarget).data('id');
     db_uploads_archive.getById(transfer_id, (err, my_transfer) => {
         console.log(my_transfer);
@@ -534,9 +539,13 @@ $(document).on('show.bs.modal', '#upload-archive-success-log', function(e) {
         let $log_text = $(e.currentTarget).find('.log-text');
         $log_text.html('');
     
-        $('#upload-archive-details-link').data({
+        $$('#upload-archive-details-link').data({
             id: my_transfer.id,
             session_label: my_transfer.url_data.expt_label
+        });
+
+        $$('[data-js-view-receipt-link]').data({
+            pdf_receipt_path: my_transfer.pdf_receipt_path
         });
     
         for (key in my_transfer.session_data) {

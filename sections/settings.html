@@ -11,6 +11,8 @@
                         aria-selected="false">Application Defaults</a>
                     <a class="nav-item nav-link hidden" id="nav-user_settings-tab" data-toggle="tab" href="#nav-user_settings" role="tab" aria-controls="nav-user_settings"
                         aria-selected="false">User Settings</a>
+                    <a class="nav-item nav-link ml-auto mr-0" id="nav-debug-tab" data-toggle="tab" href="#nav-debug" role="tab" aria-controls="nav-debug"
+                        aria-selected="false">Debug</a>
                 </div>
             </nav>
             <div class="tab-content" id="nav-tabContent">
@@ -111,7 +113,7 @@
                     </form>
                 </div>
 
-                <div class="tab-pane fade show" id="nav-user_settings" role="tabpanel" aria-labelledby="nav-user_settings-tab">
+                <div class="tab-pane fade" id="nav-user_settings" role="tabpanel" aria-labelledby="nav-user_settings-tab">
                     <div class="row">
                         <div class="col-12">
                             <p>Suppress missing anonymization script warnings</p>
@@ -182,6 +184,23 @@
                         </div>
                     </form>
 
+                    <form>
+                        <div class="form-group">
+                            <label>Upload Concurrency</label>
+                            <br/>
+                            <div class="input-group row">
+                                <div class="col-2">
+                                    <input type="number" min="1" step="1" name="upload_concurrency" id="upload_concurrency" class="form-control settings-input">
+                                </div>
+                                
+                                <div class="col-3">
+                                    <button class="btn btn-blue" id="save_upload_concurrency" disabled>Save</button>
+                                </div>
+                            </div>
+                            <small>The maximum number of simultaneous uploads (Default is 6.)</small>
+                        </div>
+                    </form>
+
 
                     <div class="form-group">
                         <br>
@@ -197,6 +216,33 @@
                     </div>
 
                 </div>
+
+                <div class="tab-pane fade" id="nav-debug" role="tabpanel" aria-labelledby="nav-debug-tab">
+                    <div class="row">
+                        <div class="col-6">
+                            <p>Open application's user data directory.</p>
+                            <button class="btn btn-blue" type="button" data-js="show-user-data-folder"><i class="far fa-folder-open"></i> Open User Data Directory</button>
+                        </div>
+
+                        <div class="col-6">
+                            <p>Clear Application Cache Directory.</p>
+                            <button class="btn btn-blue" type="button" data-js="clear-app-cache"><i class="fas fa-minus-circle"></i> Clear Application Cache</button>
+                        </div>
+                    </div>
+
+                    <div class="row" if-logged-in>
+                        <div class="col-12">
+                            <div class="border-top mt-5 pt-4">
+                                <div class="alert alert-primary" role="alert">
+                                    <b>User account debug</b>: <span data-var="username"></span>@<span data-var="server"></span>
+                                </div>
+
+                                <p><a href="json-stats.html" class="btn btn-blue">Curent User's Databases</a></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
             </div>
         </div>
 

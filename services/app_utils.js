@@ -3,7 +3,6 @@ const path = require('path')
 const fs = require('fs')
 const checksum = require('checksum')
 const FileSaver = require('file-saver')
-const { glob } = require('glob')
 
 const ElectronStore = require('electron-store')
 const settings = new ElectronStore()
@@ -22,7 +21,7 @@ exports.isDevEnv = () => {
 
 exports.getApp = () => electron.remote ? electron.remote.app : electron.app
 
-exports.getDefaultUpdateChannel = () => {
+exports.currentVersionChannel = () => {
     const app = this.getApp()
     const versionString = app.getVersion()
     
@@ -32,7 +31,7 @@ exports.getDefaultUpdateChannel = () => {
 }
 
 exports.getUpdateChannel = () => {
-    return settings.get('electron-updater-channel', this.getDefaultUpdateChannel())
+    return settings.get('electron-updater-channel', this.currentVersionChannel())
 }
 
 exports.setUpdateChannel = (channel) => {
@@ -40,15 +39,6 @@ exports.setUpdateChannel = (channel) => {
         channel = 'latest'
     }
     return settings.set('electron-updater-channel', channel)
-}
-
-exports.getJsonDbFiles = (dbType = '*') => {
-    const app = this.getApp()
-    const appDataDir = app.getPath('userData')
-    const fileRegex = dbType === '*' ? `db.*.json` : `db.${dbType}.*.json`
-    const dbPath = path.join(appDataDir, fileRegex)
-
-    return glob.sync(dbPath)
 }
 
 exports.clearDefaultTempFiles = () => {
@@ -262,7 +252,6 @@ function normalizeTimeString(only_numbers) {
 }
 exports.normalizeTimeString = normalizeTimeString
 
-
 // INFO: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions#escaping
 const escapeRegExp = (str) => {
     return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") // $& means the whole matched string
@@ -292,3 +281,6 @@ exports.alNumDashUnderscore = (input, replacedBy = "_") => {
     return exports.replaceFactory(allowRegExp, input, replacedBy)
 }
 
+exports.arrayUnique = (arr) => {
+    return arr.filter((item, pos) => arr.indexOf(item) === pos)
+}
