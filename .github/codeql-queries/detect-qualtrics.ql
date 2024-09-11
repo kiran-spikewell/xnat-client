@@ -1,8 +1,15 @@
-
+/**
+ * @name Detect Qualtrics API Usage in R Code
+ * @description Identifies usage of specific functions from the 'qualtRics' package in R code files, such as API credentials storage, survey fetching, etc.
+ * @kind path-problem
+ * @id r/detect-qualtRics-usage
+ * @tags data, API, tracking, R
+ */
 
 import semmle.code.r.DataFlow
 import semmle.code.r.AST
 
+/** Identifies if a given function is a qualtRics function */
 predicate isQualtricsFunction(string functionName) {
   functionName = "all_surveys" or
   functionName = "fetch_survey" or
